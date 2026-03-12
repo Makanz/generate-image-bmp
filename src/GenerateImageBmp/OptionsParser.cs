@@ -20,6 +20,7 @@ internal static class OptionsParser
         var marginPx = 24;
         byte threshold = 200;
         var dither = false;
+        var isDashboard = false;
 
         string? freeText = null;
 
@@ -30,6 +31,12 @@ internal static class OptionsParser
             if (arg == "--dither")
             {
                 dither = true;
+                continue;
+            }
+
+            if (arg == "--dashboard")
+            {
+                isDashboard = true;
                 continue;
             }
 
@@ -106,7 +113,8 @@ internal static class OptionsParser
             FontSizePx: fontSizePx,
             MarginPx: marginPx,
             Threshold: threshold,
-            Dither: dither);
+            Dither: dither,
+            IsDashboard: isDashboard);
 
         return new ParseResult(true, false, options, null);
     }
@@ -116,6 +124,7 @@ internal static class OptionsParser
         "\n" +
         "Usage:\n" +
         "  GenerateImageBmp [options] [free text]\n" +
+        "  GenerateImageBmp --dashboard [options]\n" +
         "\n" +
         "Options:\n" +
         "  --text <string>       Text to render (default: BNP)\n" +
@@ -127,11 +136,13 @@ internal static class OptionsParser
         "  --margin <int>        Margin in pixels (default: 24)\n" +
         "  --threshold <0-255>   Threshold (default: 200)\n" +
         "  --dither              Enable Floyd-Steinberg dithering\n" +
+        "  --dashboard           Render dashboard with components\n" +
         "  -h|--help             Show help\n" +
         "\n" +
         "Examples:\n" +
         "  GenerateImageBmp --text \"BNP\" --out bnp.bmp\n" +
-        "  GenerateImageBmp \"Hello world\" --out hello.bmp\n";
+        "  GenerateImageBmp \"Hello world\" --out hello.bmp\n" +
+        "  GenerateImageBmp --dashboard --out dashboard.bmp\n";
 
     private static int ParseInt(string s, int min, string name)
     {

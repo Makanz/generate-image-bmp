@@ -9,4 +9,5 @@ internal sealed record AppOptions(
     float FontSizePx,
     int MarginPx,
     byte Threshold,
-    bool Dither);
+    bool Dither,
+    bool IsDashboard);

@@ -1,8 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/GenerateImageBmp/GenerateImageBmp.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/GenerateImageBmp.Tests/GenerateImageBmp.Tests.csproj" />
-  </Folder>
-</Solution>

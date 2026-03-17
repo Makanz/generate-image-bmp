@@ -54,5 +54,21 @@ $RECYCLE.BIN/
 *.log
 *.tmp
 
+
+
+# Node.js
+node_modules/
+package-lock.json
+
+
+# Dashboard web
+dashboard-web/
+
+# Capture script
+capture.js
+
+# Output
+output/
+
 # Output BMP (keep for demo purposes, but typically would be ignored)
 # *.bmp

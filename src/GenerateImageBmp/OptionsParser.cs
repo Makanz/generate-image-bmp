@@ -21,6 +21,7 @@ internal static class OptionsParser
         byte threshold = 200;
         var dither = false;
         var isDashboard = false;
+        var grayscale = false;
 
         string? freeText = null;
 
@@ -37,6 +38,12 @@ internal static class OptionsParser
             if (arg == "--dashboard")
             {
                 isDashboard = true;
+                continue;
+            }
+
+            if (arg == "--grayscale")
+            {
+                grayscale = true;
                 continue;
             }
 
@@ -114,13 +121,14 @@ internal static class OptionsParser
             MarginPx: marginPx,
             Threshold: threshold,
             Dither: dither,
-            IsDashboard: isDashboard);
+            IsDashboard: isDashboard,
+            Grayscale: grayscale);
 
         return new ParseResult(true, false, options, null);
     }
 
     public static string GetHelpText() =>
-        "GenerateImageBmp - generates a 1-bit BMP with black text\n" +
+        "GenerateImageBmp - generates a BMP with black text\n" +
         "\n" +
         "Usage:\n" +
         "  GenerateImageBmp [options] [free text]\n" +
@@ -137,12 +145,14 @@ internal static class OptionsParser
         "  --threshold <0-255>   Threshold (default: 200)\n" +
         "  --dither              Enable Floyd-Steinberg dithering\n" +
         "  --dashboard           Render dashboard with components\n" +
+        "  --grayscale           Use 4-bit grayscale (16 levels)\n" +
         "  -h|--help             Show help\n" +
         "\n" +
         "Examples:\n" +
         "  GenerateImageBmp --text \"BNP\" --out bnp.bmp\n" +
         "  GenerateImageBmp \"Hello world\" --out hello.bmp\n" +
-        "  GenerateImageBmp --dashboard --out dashboard.bmp\n";
+        "  GenerateImageBmp --dashboard --out dashboard.bmp\n" +
+        "  GenerateImageBmp --dashboard --grayscale --out dashboard_gray.bmp\n";
 
     private static int ParseInt(string s, int min, string name)
     {

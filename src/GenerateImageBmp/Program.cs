@@ -26,8 +26,8 @@ try
     {
         var canvas = new DashboardCanvas(options.Width, options.Height);
 
-        canvas.Components.Add(new TextComponent("Temperatur", "23.5°C", new Point(20, 20)));
-        canvas.Components.Add(new TextComponent("Luftfuktighet", "67%", new Point(20, 100)));
+        canvas.Components.Add(new TextComponent("Inomhus", "23.5°C", new Point(20, 20), new Size(180, 60)));
+        canvas.Components.Add(new TextComponent("Luftfuktighet", "67%", new Point(220, 20), new Size(180, 60)));
 
         canvas.Components.Add(new BarChartComponent(
             new List<BarData>
@@ -40,16 +40,19 @@ try
                 new("Lör", 22f),
                 new("Sön", 15f)
             },
-            new Point(20, 180),
-            new Size(460, 150)));
+            new Point(20, 100),
+            new Size(460, 200)));
 
-        canvas.Components.Add(new ProgressGaugeComponent(75, "Batteri", new Point(520, 20), new Size(120, 140)));
-        canvas.Components.Add(new ProgressGaugeComponent(42, "CPU", new Point(660, 20), new Size(120, 140)));
-        canvas.Components.Add(new ProgressGaugeComponent(88, "Nät", new Point(520, 180), new Size(120, 140)));
-        canvas.Components.Add(new ProgressGaugeComponent(12, "Ljud", new Point(660, 180), new Size(120, 140)));
+        canvas.Components.Add(new ProgressGaugeComponent(75, "Batteri", new Point(500, 100), new Size(140, 140)));
+        canvas.Components.Add(new ProgressGaugeComponent(42, "CPU", new Point(660, 100), new Size(140, 140)));
+        canvas.Components.Add(new ProgressGaugeComponent(88, "Nät", new Point(500, 260), new Size(140, 140)));
+        canvas.Components.Add(new ProgressGaugeComponent(12, "Ljud", new Point(660, 260), new Size(140, 140)));
 
-        canvas.RenderToFile(options.OutputPath, options.Threshold);
-        Console.WriteLine($"Wrote dashboard {options.OutputPath} ({options.Width}x{options.Height}, 1-bit BMP).");
+        canvas.Components.Add(new TextComponent("Uppdaterad", "12:34", new Point(20, 420), new Size(200, 40)));
+
+        canvas.RenderToFile(options.OutputPath, options.Threshold, options.Grayscale);
+        var format = options.Grayscale ? "4-bit grayscale" : "1-bit";
+        Console.WriteLine($"Wrote dashboard {options.OutputPath} ({options.Width}x{options.Height}, {format} BMP).");
     }
     else
     {

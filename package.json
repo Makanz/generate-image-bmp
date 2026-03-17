@@ -1,0 +1,30 @@
+{
+  "name": "generate-image-bmp",
+  "version": "1.0.0",
+  "description": "Console app that generates a 1-bit (monochrome) BMP image (default 800x480) with black text on a white background.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "vite dashboard-web",
+    "build": "vite build dashboard-web",
+    "preview": "vite preview dashboard-web",
+    "generate": "node capture.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "canvas": "^3.2.1",
+    "jsdom": "^29.0.0",
+    "playwright": "^1.58.2",
+    "puppeteer": "^24.39.1",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "vite": "^8.0.0"
+  }
+}

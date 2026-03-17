@@ -10,4 +10,5 @@ internal sealed record AppOptions(
     int MarginPx,
     byte Threshold,
     bool Dither,
-    bool IsDashboard);
+    bool IsDashboard,
+    bool Grayscale);

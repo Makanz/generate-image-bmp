@@ -1,29 +1,31 @@
 # GenerateImageBmp
 
-Console app that generates a 1-bit (monochrome) BMP image (default 800x480) with black text on a white background.
+Node.js app that generates a dashboard BMP/PNG image (800x480) with system metrics.
 
 ## Build
 
 ```bash
-dotnet build
+npm install
 ```
 
 ## Run
 
 ```bash
-dotnet run --project src/GenerateImageBmp -- --text "BNP" --out bnp.bmp
+npm run generate
 ```
 
-Optional parameters:
+Output is saved to `output/dashboard.png`.
 
-- `--width 800` `--height 480`
-- `--font "Segoe UI"` `--fontSize 64`
-- `--margin 24`
-- `--threshold 200`
-- `--dither`
+## Development
+
+```bash
+npm run dev
+```
+
+Runs a local web server for the dashboard.
 
 ## Test
 
 ```bash
-dotnet test
+npm test
 ```

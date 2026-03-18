@@ -57,11 +57,5 @@ $RECYCLE.BIN/
 # Node.js
 node_modules/
 
-# Capture script
-capture.js
-
 # Output
 output/
-
-# Output BMP (keep for demo purposes, but typically would be ignored)
-# *.bmp

@@ -54,15 +54,8 @@ $RECYCLE.BIN/
 *.log
 *.tmp
 
-
-
 # Node.js
 node_modules/
-package-lock.json
-
-
-# Dashboard web
-dashboard-web/
 
 # Capture script
 capture.js

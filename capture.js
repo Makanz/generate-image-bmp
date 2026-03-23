@@ -1,6 +1,6 @@
 const sharp = require('sharp');
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs').promises;
 const playwright = require('playwright');
 
 const WIDTH = 800;
@@ -15,9 +15,7 @@ async function generateImage(options = {}) {
         outputBmp = path.join(OUTPUT_DIR, 'dashboard.bmp')
     } = options;
 
-    if (!fs.existsSync(OUTPUT_DIR)) {
-        fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    }
+    await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
     const browser = await playwright.chromium.launch({
         headless: true,
@@ -35,7 +33,15 @@ async function generateImage(options = {}) {
         if (!response || !response.ok()) {
             throw new Error(`Server returned ${response ? response.status() : 'no response'}`);
         }
-        await page.waitForTimeout(2000);
+        
+        const dataLoaded = await page.waitForFunction(
+            () => document.body.dataset.loaded === 'true',
+            { timeout: 10000 }
+        ).then(() => true).catch(() => false);
+        
+        if (!dataLoaded) {
+            console.warn('[capture] Data load timeout, proceeding with current content');
+        }
     } catch (err) {
         console.error('[capture] Failed to load page:', err.message);
         console.error('[capture] Make sure the server is running: npm start');
@@ -44,19 +50,21 @@ async function generateImage(options = {}) {
     }
 
     console.log('[capture] Taking screenshot...');
-    await page.screenshot({ path: outputPng, type: 'png', fullPage: false });
+    const pngBuffer = await page.screenshot({ type: 'png', fullPage: false });
 
     await browser.close();
+    console.log(`[capture] PNG captured (${pngBuffer.length} bytes)`);
+
+    const [pngOut, bmpOut] = await Promise.all([
+        sharp(pngBuffer).toFile(outputPng),
+        sharp(pngBuffer)
+            .greyscale()
+            .threshold(128)
+            .toFormat('bmp')
+            .toFile(outputBmp)
+    ]);
+
     console.log(`[capture] PNG saved: ${outputPng}`);
-
-    const pngBuffer = fs.readFileSync(outputPng);
-    const bmpBuffer = await sharp(pngBuffer)
-        .greyscale()
-        .threshold(128)
-        .toFormat('bmp')
-        .toBuffer();
-
-    fs.writeFileSync(outputBmp, bmpBuffer);
     console.log(`[capture] BMP saved: ${outputBmp}`);
 
     return { png: outputPng, bmp: outputBmp };

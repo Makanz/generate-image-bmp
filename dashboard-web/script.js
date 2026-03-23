@@ -144,6 +144,7 @@ async function fetchData() {
         if (!response.ok) {
             console.warn('[ui] API request failed, using mock data');
             generateMockData();
+            markDataLoaded();
             return;
         }
         const data = await response.json();
@@ -151,10 +152,16 @@ async function fetchData() {
         updateWeather(data.weather);
         updateCalendar(data.calendar);
         updateLunch(data.lunch);
+        markDataLoaded();
     } catch {
         console.warn('[ui] Failed to fetch data, using mock data');
         generateMockData();
+        markDataLoaded();
     }
+}
+
+function markDataLoaded() {
+    document.body.dataset.loaded = 'true';
 }
 
 updateTimestamp();

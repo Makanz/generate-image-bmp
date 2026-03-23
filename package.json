@@ -10,6 +10,7 @@
     "dev": "vite dashboard-web",
     "build": "vite build dashboard-web",
     "preview": "vite preview dashboard-web",
+    "start": "node server.js",
     "generate": "node capture.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

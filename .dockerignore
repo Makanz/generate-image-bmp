@@ -1,0 +1,6 @@
+node_modules
+output
+.git
+.gitignore
+*.md
+dashboard-web/node_modules

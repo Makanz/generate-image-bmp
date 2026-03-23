@@ -1,6 +1,7 @@
 function updateTimestamp() {
     const now = new Date();
     const formatted = now.toLocaleString('sv-SE', {
+        weekday: 'short',
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -8,99 +9,158 @@ function updateTimestamp() {
         minute: '2-digit'
     });
     document.getElementById('timestamp').textContent = formatted;
-    document.getElementById('last-update').textContent = formatted;
 }
 
-function updateGauge(elementId, value, max, unit) {
-    const percentage = (value / max) * 100;
-    const gauge = document.getElementById(elementId);
-    if (gauge) {
-        gauge.querySelector('.gauge-value').textContent = value.toFixed(1) + unit;
-        gauge.querySelector('.gauge-fill').style.width = percentage + '%';
-    }
+function formatDateSwedish(dateStr) {
+    const date = new Date(dateStr);
+    const weekdays = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+    const months = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+    return `${weekdays[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
 }
 
-function updateProgress(labelId, barId, percentage) {
-    const label = document.getElementById(labelId);
-    const bar = document.getElementById(barId);
-    if (label) label.textContent = percentage + '%';
-    if (bar) bar.style.width = percentage + '%';
+function isToday(dateStr) {
+    const date = new Date(dateStr);
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
 }
 
-function updateStat(labelId, value) {
-    const element = document.getElementById(labelId);
-    if (element) element.textContent = value;
-}
+function updateWeather(data) {
+    const tempEl = document.getElementById('weather-temp');
+    const descEl = document.getElementById('weather-desc');
+    const locationEl = document.getElementById('weather-location');
+    const precipEl = document.getElementById('weather-precip');
 
-function updateInfo(labelId, value) {
-    const element = document.getElementById(labelId);
-    if (element) element.textContent = value;
-}
-
-function formatUptime(seconds) {
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    return `${days}d ${hours}h ${mins}m`;
-}
-
-async function fetchSystemData() {
-    try {
-        const response = await fetch('/api/system');
-        if (!response.ok) return null;
-        return await response.json();
-    } catch {
-        return null;
-    }
-}
-
-function updateDashboard(data) {
-    if (!data) {
-        generateMockData();
+    if (!data || data.error) {
+        tempEl.textContent = '--°C';
+        descEl.textContent = 'Ingen data';
+        locationEl.textContent = '';
+        precipEl.textContent = '';
         return;
     }
 
-    updateGauge('temp-gauge', data.temperature || 0, 50, '°C');
-    updateProgress('cpu-value', 'cpu-bar', data.cpu || 0);
-    updateProgress('mem-value', 'mem-bar', data.memory || 0);
-    updateProgress('disk-root-value', 'disk-root-bar', data.diskRoot || 0);
-    updateProgress('disk-data-value', 'disk-data-bar', data.diskData || 0);
-    updateStat('network-up', '↑ ' + (data.networkUp || 0) + ' KB/s');
-    updateStat('network-down', '↓ ' + (data.networkDown || 0) + ' KB/s');
-    updateInfo('hostname', data.hostname || 'unknown');
-    updateInfo('uptime', formatUptime(data.uptime || 0));
-    updateInfo('ip', data.ip || '0.0.0.0');
+    if (data.temperature !== undefined) {
+        tempEl.textContent = Math.round(data.temperature) + '°C';
+    }
+    if (data.description) {
+        descEl.textContent = data.description;
+    }
+    if (data.location) {
+        locationEl.textContent = data.location;
+    }
+    if (data.precipitation !== undefined) {
+        precipEl.textContent = 'Nederbörd: ' + data.precipitation + '%';
+    }
+}
+
+function updateLunch(data) {
+    const container = document.getElementById('lunch-content');
+
+    if (!data || data.error || !data.menus || data.menus.length === 0) {
+        container.innerHTML = '<p class="no-data">Ingen lunchdata tillgänglig</p>';
+        return;
+    }
+
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+
+    if (!isWeekday) {
+        container.innerHTML = '<p class="no-data">Ingen lunch idag</p>';
+        return;
+    }
+
+    const html = data.menus.map(menu => {
+        const meals = menu.meals || [];
+        const mealsHtml = meals.map(meal => `<div class="lunch-meals">${escapeHtml(meal)}</div>`).join('');
+        return `
+            <div class="lunch-item">
+                <div class="lunch-day">${escapeHtml(menu.day || '')}</div>
+                ${mealsHtml}
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = html || '<p class="no-data">Ingen lunch idag</p>';
+}
+
+function updateCalendar(data) {
+    const container = document.getElementById('calendar-content');
+
+    if (!data || data.error || !data.events || data.events.length === 0) {
+        container.innerHTML = '<p class="no-data">Inga kalenderhändelser</p>';
+        return;
+    }
+
+    const html = data.events.slice(0, 7).map(event => {
+        const todayClass = isToday(event.date) ? 'today' : '';
+        return `
+            <div class="calendar-item ${todayClass}">
+                <span class="calendar-date">${formatDateSwedish(event.date)}</span>
+                <span class="calendar-event">${escapeHtml(event.summary || event.title || '')}</span>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = html;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function generateMockData() {
-    const data = {
-        temperature: 20 + Math.random() * 15,
-        cpu: Math.floor(Math.random() * 80 + 10),
-        memory: Math.floor(Math.random() * 60 + 20),
-        diskRoot: Math.floor(Math.random() * 40 + 50),
-        diskData: Math.floor(Math.random() * 50 + 10),
-        networkUp: (Math.random() * 5).toFixed(1),
-        networkDown: (Math.random() * 10).toFixed(1),
-        hostname: 'raspberrypi',
-        uptime: Math.floor(Math.random() * 604800 + 86400),
-        ip: '192.168.1.' + Math.floor(Math.random() * 254 + 1)
-    };
+    updateWeather({
+        temperature: 18 + Math.random() * 10,
+        description: 'Delvis molnigt',
+        location: 'Stockholm',
+        precipitation: Math.floor(Math.random() * 50)
+    });
 
-    updateGauge('temp-gauge', data.temperature, 50, '°C');
-    updateProgress('cpu-value', 'cpu-bar', data.cpu);
-    updateProgress('mem-value', 'mem-bar', data.memory);
-    updateProgress('disk-root-value', 'disk-root-bar', data.diskRoot);
-    updateProgress('disk-data-value', 'disk-data-bar', data.diskData);
-    updateStat('network-up', '↑ ' + data.networkUp + ' KB/s');
-    updateStat('network-down', '↓ ' + data.networkDown + ' KB/s');
-    updateInfo('hostname', data.hostname);
-    updateInfo('uptime', formatUptime(data.uptime));
-    updateInfo('ip', data.ip);
+    const today = new Date();
+    const events = [];
+    for (let i = 0; i < 5; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() + i);
+        events.push({
+            date: date.toISOString().split('T')[0],
+            summary: ['Möte', 'Handla', 'Träning', 'Lunch', 'Apotek'][Math.floor(Math.random() * 5)] + ' ' + (i + 1)
+        });
+    }
+    updateCalendar({ events: events });
+
+    updateLunch({
+        menus: [{
+            day: 'Idag',
+            meals: ['Köttbullar med potatis', 'Vegetarisk pasta', 'Sallad']
+        }]
+    });
+}
+
+async function fetchData() {
+    try {
+        const response = await fetch('/api/data');
+        if (!response.ok) {
+            console.warn('[ui] API request failed, using mock data');
+            generateMockData();
+            return;
+        }
+        const data = await response.json();
+
+        updateWeather(data.weather);
+        updateCalendar(data.calendar);
+        updateLunch(data.lunch);
+    } catch {
+        console.warn('[ui] Failed to fetch data, using mock data');
+        generateMockData();
+    }
 }
 
 updateTimestamp();
-generateMockData();
+fetchData();
+
 setInterval(() => {
     updateTimestamp();
-    generateMockData();
-}, 30000);
+    fetchData();
+}, 5 * 60 * 1000);

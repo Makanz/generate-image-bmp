@@ -66,94 +66,94 @@ body {
     border-bottom: 1px solid #ccc;
 }
 
-.gauge {
-    text-align: center;
+.weather-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.gauge-value {
-    font-size: 24px;
+.weather-main {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.weather-temp {
+    font-size: 32px;
     font-weight: 700;
-    color: #000;
-    margin-bottom: 6px;
 }
 
-.gauge-bar {
-    height: 8px;
-    background: #e0e0e0;
-    border: 1px solid #000;
+.weather-desc {
+    font-size: 14px;
+    color: #666;
 }
 
-.gauge-fill {
-    height: 100%;
-    background: #000;
-}
-
-.progress {
-    margin-bottom: 8px;
-}
-
-.progress:last-child {
-    margin-bottom: 0;
-}
-
-.progress-label {
+.weather-details {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     font-size: 11px;
-    margin-bottom: 3px;
+    color: #888;
 }
 
-.progress-bar {
-    height: 10px;
-    background: #e0e0e0;
-    border: 1px solid #000;
-}
-
-.progress-fill {
-    height: 100%;
-    background: #000;
-    transition: width 0.3s;
-}
-
-.stat-row {
-    display: flex;
-    justify-content: space-between;
+.lunch-content {
     font-size: 13px;
+}
+
+.lunch-item {
     padding: 4px 0;
     border-bottom: 1px dotted #ccc;
 }
 
-.stat-row:last-child {
+.lunch-item:last-child {
     border-bottom: none;
 }
 
-.stat-label {
+.lunch-day {
     font-weight: 600;
+    margin-bottom: 2px;
 }
 
-.stat-value {
-    font-family: monospace;
+.lunch-meals {
+    color: #555;
 }
 
-.info-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-}
-
-.info-item {
+.calendar-content {
     display: flex;
     flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
 }
 
-.info-label {
-    font-size: 10px;
-    color: #666;
-    text-transform: uppercase;
+.calendar-item {
+    display: flex;
+    padding: 4px 6px;
+    border-radius: 2px;
+    background: #f9f9f9;
 }
 
-.info-value {
-    font-size: 14px;
+.calendar-item.today {
+    background: #e8f0fe;
     font-weight: 600;
-    font-family: monospace;
+}
+
+.calendar-date {
+    width: 70px;
+    flex-shrink: 0;
+    color: #666;
+}
+
+.calendar-event {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.loading {
+    color: #888;
+    font-style: italic;
+}
+
+.no-data {
+    color: #888;
 }

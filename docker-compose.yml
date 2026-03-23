@@ -1,0 +1,15 @@
+services:
+  dashboard:
+    build: .
+    container_name: dashboard
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - PORT=3000
+      - N8N_WEBHOOK_WEATHER=${N8N_WEBHOOK_WEATHER}
+      - N8N_WEBHOOK_CALENDAR=${N8N_WEBHOOK_CALENDAR}
+      - N8N_WEBHOOK_LUNCH=${N8N_WEBHOOK_LUNCH}
+      - REFRESH_INTERVAL_MINUTES=${REFRESH_INTERVAL_MINUTES:-15}
+    volumes:
+      - ./output:/app/output

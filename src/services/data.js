@@ -5,7 +5,8 @@ const CACHE_TTL_MS = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '15', 10) 
 let cache = {
     weather: { data: null, timestamp: 0 },
     calendar: { data: null, timestamp: 0 },
-    lunch: { data: null, timestamp: 0 }
+    lunch: { data: null, timestamp: 0 },
+    indoor: { data: null, timestamp: 0 }
 };
 
 function isCacheValid(source) {
@@ -57,12 +58,28 @@ async function fetchLunch() {
     }
 }
 
+async function fetchIndoor() {
+    const url = process.env.N8N_WEBHOOK_INDOOR;
+    if (!url) {
+        console.warn('[data] N8N_WEBHOOK_INDOOR not configured');
+        return null;
+    }
+    try {
+        const response = await axios.get(url, { timeout: 10000 });
+        return response.data;
+    } catch (err) {
+        console.error('[data] Indoor fetch failed:', err.message);
+        return null;
+    }
+}
+
 async function fetchAllData() {
     const now = Date.now();
     const results = {
         weather: null,
         calendar: null,
         lunch: null,
+        indoor: null,
         timestamp: new Date().toISOString()
     };
 
@@ -87,6 +104,13 @@ async function fetchAllData() {
         results.lunch = cache.lunch.data;
     }
 
+    if (!isCacheValid('indoor')) {
+        results.indoor = await fetchIndoor();
+        cache.indoor = { data: results.indoor, timestamp: now };
+    } else {
+        results.indoor = cache.indoor.data;
+    }
+
     return results;
 }
 
@@ -94,6 +118,7 @@ async function fetchAllDataFresh() {
     cache.weather = { data: null, timestamp: 0 };
     cache.calendar = { data: null, timestamp: 0 };
     cache.lunch = { data: null, timestamp: 0 };
+    cache.indoor = { data: null, timestamp: 0 };
     return fetchAllData();
 }
 

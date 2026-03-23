@@ -1,108 +1,5 @@
-function updateTimestamp() {
-    const now = new Date();
-    const formatted = now.toLocaleString('sv-SE', {
-        weekday: 'short',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-    document.getElementById('timestamp').textContent = formatted;
-}
-
-function formatDateSwedish(dateStr) {
-    const date = new Date(dateStr);
-    const weekdays = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
-    const months = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
-    return `${weekdays[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
-}
-
-function isToday(dateStr) {
-    const date = new Date(dateStr);
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-}
-
-function updateWeather(data) {
-    const tempEl = document.getElementById('weather-temp');
-    const descEl = document.getElementById('weather-desc');
-    const locationEl = document.getElementById('weather-location');
-    const precipEl = document.getElementById('weather-precip');
-
-    if (!data || data.error) {
-        tempEl.textContent = '--°C';
-        descEl.textContent = 'Ingen data';
-        locationEl.textContent = '';
-        precipEl.textContent = '';
-        return;
-    }
-
-    if (data.temperature !== undefined) {
-        tempEl.textContent = Math.round(data.temperature) + '°C';
-    }
-    if (data.description) {
-        descEl.textContent = data.description;
-    }
-    if (data.location) {
-        locationEl.textContent = data.location;
-    }
-    if (data.precipitation !== undefined) {
-        precipEl.textContent = 'Nederbörd: ' + data.precipitation + '%';
-    }
-}
-
-function updateLunch(data) {
-    const container = document.getElementById('lunch-content');
-
-    if (!data || data.error || !data.menus || data.menus.length === 0) {
-        container.innerHTML = '<p class="no-data">Ingen lunchdata tillgänglig</p>';
-        return;
-    }
-
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
-
-    if (!isWeekday) {
-        container.innerHTML = '<p class="no-data">Ingen lunch idag</p>';
-        return;
-    }
-
-    const html = data.menus.map(menu => {
-        const meals = menu.meals || [];
-        const mealsHtml = meals.map(meal => `<div class="lunch-meals">${escapeHtml(meal)}</div>`).join('');
-        return `
-            <div class="lunch-item">
-                <div class="lunch-day">${escapeHtml(menu.day || '')}</div>
-                ${mealsHtml}
-            </div>
-        `;
-    }).join('');
-
-    container.innerHTML = html || '<p class="no-data">Ingen lunch idag</p>';
-}
-
-function updateCalendar(data) {
-    const container = document.getElementById('calendar-content');
-
-    if (!data || data.error || !data.events || data.events.length === 0) {
-        container.innerHTML = '<p class="no-data">Inga kalenderhändelser</p>';
-        return;
-    }
-
-    const html = data.events.slice(0, 7).map(event => {
-        const todayClass = isToday(event.date) ? 'today' : '';
-        return `
-            <div class="calendar-item ${todayClass}">
-                <span class="calendar-date">${formatDateSwedish(event.date)}</span>
-                <span class="calendar-event">${escapeHtml(event.summary || event.title || '')}</span>
-            </div>
-        `;
-    }).join('');
-
-    container.innerHTML = html;
-}
+const MONTHS_SV = ['JANUARI','FEBRUARI','MARS','APRIL','MAJ','JUNI','JULI','AUGUSTI','SEPTEMBER','OKTOBER','NOVEMBER','DECEMBER'];
+const DAYS_SV = ['söndag','måndag','tisdag','onsdag','torsdag','fredag','lördag'];
 
 function escapeHtml(text) {
     const div = document.createElement('div');
@@ -110,32 +7,184 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function isSameDay(a, b) {
+    return a.getFullYear() === b.getFullYear()
+        && a.getMonth() === b.getMonth()
+        && a.getDate() === b.getDate();
+}
+
+function formatTime(datetimeStr) {
+    const date = new Date(datetimeStr);
+    if (isNaN(date.getTime())) return '';
+    const h = String(date.getHours()).padStart(2, '0');
+    const m = String(date.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+}
+
+function updateDate() {
+    const now = new Date();
+    document.getElementById('date-year').textContent = now.getFullYear();
+    document.getElementById('date-day').textContent = now.getDate();
+    document.getElementById('date-month').textContent = MONTHS_SV[now.getMonth()];
+}
+
+function updateTemperature(weather, indoor) {
+    // Utomhus
+    if (weather) {
+        const current = weather.outdoor?.current ?? weather.temperature;
+        if (current !== undefined) {
+            document.getElementById('ute-temp').textContent = Math.round(current);
+        }
+        const forecast = weather.outdoor?.forecast || [];
+        for (let i = 0; i < 3; i++) {
+            const el = document.getElementById(`forecast-${i}`);
+            if (el) {
+                el.textContent = forecast[i] !== undefined
+                    ? Math.round(forecast[i].temp ?? forecast[i]) + '°'
+                    : '--°';
+            }
+        }
+    }
+
+    // Inomhus
+    if (indoor) {
+        const current = indoor.current;
+        if (current !== undefined) {
+            document.getElementById('inne-temp').textContent = Math.round(current);
+        }
+        const roomIds = { 'KÖK': 'room-kok', 'V-RUM': 'room-vrum', 'S-RUM': 'room-srum' };
+        const rooms = indoor.rooms || [];
+        rooms.forEach(room => {
+            const id = roomIds[room.name?.toUpperCase()];
+            if (id) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = Math.round(room.temp) + '°';
+            }
+        });
+    }
+}
+
+function updateSchoolLunch(data) {
+    const container = document.getElementById('lunch-content');
+
+    if (!data || !data.menus || data.menus.length === 0) {
+        container.innerHTML = '<p class="no-data">Ingen lunchdata</p>';
+        return;
+    }
+
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+        container.innerHTML = '<p class="no-data">Ingen lunch idag</p>';
+        return;
+    }
+
+    const todayName = DAYS_SV[dayOfWeek];
+    const menu = data.menus.find(m => {
+        const day = (m.day || '').toLowerCase().trim();
+        return day === todayName || todayName.startsWith(day) || day.startsWith(todayName.slice(0, 3));
+    }) || data.menus[0];
+
+    if (!menu) {
+        container.innerHTML = '<p class="no-data">Ingen lunch idag</p>';
+        return;
+    }
+
+    const dayLabel = menu.day ? `<div class="lunch-day-name">${escapeHtml(menu.day)}</div>` : '';
+    const mealsHtml = (menu.meals || [])
+        .map(meal => `<div class="lunch-meal">${escapeHtml(meal)}</div>`)
+        .join('');
+
+    container.innerHTML = dayLabel + (mealsHtml || '<p class="no-data">Ingen lunch idag</p>');
+}
+
+function renderCalendarEvents(events, containerId) {
+    const container = document.getElementById(containerId);
+
+    if (!events || events.length === 0) {
+        container.innerHTML = '<p class="no-data">Inga händelser</p>';
+        return;
+    }
+
+    const html = events.map(event => {
+        const time = formatTime(event.datetime || event.date || '');
+        const title = escapeHtml(event.summary || event.title || '');
+        const timeHtml = time
+            ? `<span class="cal-time">${time}</span>`
+            : `<span class="cal-time"></span>`;
+        return `<div class="cal-event">${timeHtml}<span class="cal-title">${title}</span></div>`;
+    }).join('');
+
+    container.innerHTML = html;
+}
+
+function updateCalendar(data) {
+    if (!data || !data.events) {
+        renderCalendarEvents([], 'cal-today');
+        renderCalendarEvents([], 'cal-tomorrow');
+        return;
+    }
+
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayEvents = data.events.filter(e => {
+        const d = new Date(e.datetime || e.date || '');
+        return isSameDay(d, today);
+    });
+
+    const tomorrowEvents = data.events.filter(e => {
+        const d = new Date(e.datetime || e.date || '');
+        return isSameDay(d, tomorrow);
+    });
+
+    renderCalendarEvents(todayEvents, 'cal-today');
+    renderCalendarEvents(tomorrowEvents, 'cal-tomorrow');
+}
+
 function generateMockData() {
-    updateWeather({
-        temperature: 18 + Math.random() * 10,
-        description: 'Delvis molnigt',
-        location: 'Stockholm',
-        precipitation: Math.floor(Math.random() * 50)
+    updateTemperature(
+        {
+            outdoor: {
+                current: 9,
+                forecast: [{ temp: 12 }, { temp: 8 }, { temp: 6 }]
+            }
+        },
+        {
+            current: 20,
+            rooms: [
+                { name: 'KÖK', temp: 21 },
+                { name: 'V-RUM', temp: 22 },
+                { name: 'S-RUM', temp: 20 }
+            ]
+        }
+    );
+
+    updateSchoolLunch({
+        menus: [{
+            day: 'Måndag',
+            meals: ['Ris & kyckling', 'Vegetarisk pasta']
+        }]
     });
 
     const today = new Date();
-    const events = [];
-    for (let i = 0; i < 5; i++) {
-        const date = new Date(today);
-        date.setDate(date.getDate() + i);
-        events.push({
-            date: date.toISOString().split('T')[0],
-            summary: ['Möte', 'Handla', 'Träning', 'Lunch', 'Apotek'][Math.floor(Math.random() * 5)] + ' ' + (i + 1)
-        });
-    }
-    updateCalendar({ events: events });
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    updateLunch({
-        menus: [{
-            day: 'Idag',
-            meals: ['Köttbullar med potatis', 'Vegetarisk pasta', 'Sallad']
-        }]
+    updateCalendar({
+        events: [
+            { datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 8, 0).toISOString(), summary: 'Sopttömning' },
+            { datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 17, 0).toISOString(), summary: 'Februlov & mos' },
+            { datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 18, 30).toISOString(), summary: 'Makerspace' },
+            { datetime: new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 7, 0).toISOString(), summary: 'Lämna bilen' },
+            { datetime: new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 17, 0).toISOString(), summary: 'Kvällsmat' }
+        ]
     });
+}
+
+function markDataLoaded() {
+    document.body.dataset.loaded = 'true';
 }
 
 async function fetchData() {
@@ -149,9 +198,9 @@ async function fetchData() {
         }
         const data = await response.json();
 
-        updateWeather(data.weather);
+        updateTemperature(data.weather, data.indoor);
+        updateSchoolLunch(data.lunch);
         updateCalendar(data.calendar);
-        updateLunch(data.lunch);
         markDataLoaded();
     } catch {
         console.warn('[ui] Failed to fetch data, using mock data');
@@ -160,14 +209,10 @@ async function fetchData() {
     }
 }
 
-function markDataLoaded() {
-    document.body.dataset.loaded = 'true';
-}
-
-updateTimestamp();
+updateDate();
 fetchData();
 
 setInterval(() => {
-    updateTimestamp();
+    updateDate();
     fetchData();
 }, 5 * 60 * 1000);

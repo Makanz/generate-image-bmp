@@ -16,7 +16,7 @@
                     <div class="temp-label">UTE</div>
                     <div class="temp-unit">°C</div>
                 </div>
-                <div class="temp-main" id="ute-temp">--</div>
+                <div class="temp-main" id="ute-temp"><span id="ute-temp-val">--</span><span class="temp-trend" id="ute-trend"></span></div>
                 <div class="temp-forecast" id="ute-forecast">
                     <span class="forecast-item" id="forecast-0">--°</span>
                     <span class="forecast-sep">|</span>
@@ -33,20 +33,9 @@
                     <div class="temp-label">INNE</div>
                     <div class="temp-unit">°C</div>
                 </div>
-                <div class="temp-main" id="inne-temp">--</div>
+                <div class="temp-main" id="inne-temp"><span id="inne-temp-val">--</span><span class="temp-trend" id="inne-trend"></span></div>
                 <div class="temp-rooms" id="inne-rooms">
-                    <div class="room-names">
-                        <span class="room-name">KÖK</span>
-                        <span class="room-name">V-RUM</span>
-                        <span class="room-name">S-RUM</span>
-                    </div>
-                    <div class="room-vals">
-                        <span class="room-temp" id="room-kok">--°</span>
-                        <span class="room-sep">|</span>
-                        <span class="room-temp" id="room-vrum">--°</span>
-                        <span class="room-sep">|</span>
-                        <span class="room-temp" id="room-srum">--°</span>
-                    </div>
+                    <div id="room-chart"></div>
                 </div>
             </div>
         </div>

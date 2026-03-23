@@ -1,6 +1,32 @@
 const MONTHS_SV = ['JANUARI','FEBRUARI','MARS','APRIL','MAJ','JUNI','JULI','AUGUSTI','SEPTEMBER','OKTOBER','NOVEMBER','DECEMBER'];
 const DAYS_SV = ['söndag','måndag','tisdag','onsdag','torsdag','fredag','lördag'];
 
+const prevTemps = { ute: null, inne: null };
+
+function getTrend(current, previous) {
+    if (previous === null) return '';
+    const diff = current - previous;
+    if (diff > 0.5) return '↑';
+    if (diff < -0.5) return '↓';
+    return '→';
+}
+
+function renderRoomChart(rooms) {
+    const container = document.getElementById('room-chart');
+    if (!rooms || rooms.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const rows = rooms.map(room => {
+        const val = Math.round(room.temp);
+        const label = room.name.toUpperCase();
+        return `<div class="room-row"><span class="room-name">${escapeHtml(label)}</span><span class="room-temp">${val}°</span></div>`;
+    });
+
+    container.innerHTML = rows.join('');
+}
+
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -33,7 +59,11 @@ function updateTemperature(weather, indoor) {
     if (weather) {
         const current = weather.outdoor?.current ?? weather.temperature;
         if (current !== undefined) {
-            document.getElementById('ute-temp').textContent = Math.round(current);
+            const rounded = Math.round(current);
+            const trend = getTrend(rounded, prevTemps.ute);
+            prevTemps.ute = rounded;
+            document.getElementById('ute-temp-val').textContent = rounded;
+            document.getElementById('ute-trend').textContent = trend;
         }
         const forecast = weather.outdoor?.forecast || [];
         for (let i = 0; i < 3; i++) {
@@ -50,17 +80,13 @@ function updateTemperature(weather, indoor) {
     if (indoor) {
         const current = indoor.current;
         if (current !== undefined) {
-            document.getElementById('inne-temp').textContent = Math.round(current);
+            const rounded = Math.round(current);
+            const trend = getTrend(rounded, prevTemps.inne);
+            prevTemps.inne = rounded;
+            document.getElementById('inne-temp-val').textContent = rounded;
+            document.getElementById('inne-trend').textContent = trend;
         }
-        const roomIds = { 'KÖK': 'room-kok', 'V-RUM': 'room-vrum', 'S-RUM': 'room-srum' };
-        const rooms = indoor.rooms || [];
-        rooms.forEach(room => {
-            const id = roomIds[room.name?.toUpperCase()];
-            if (id) {
-                const el = document.getElementById(id);
-                if (el) el.textContent = Math.round(room.temp) + '°';
-            }
-        });
+        renderRoomChart(indoor.rooms || []);
     }
 }
 
@@ -174,8 +200,8 @@ function generateMockData() {
 
     updateCalendar({
         events: [
-            { datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 8, 0).toISOString(), summary: 'Sopttömning' },
-            { datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 17, 0).toISOString(), summary: 'Februlov & mos' },
+            { datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 8, 0).toISOString(), summary: 'Soptömning' },
+            { datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 17, 0).toISOString(), summary: 'Falukorv & mos' },
             { datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 18, 30).toISOString(), summary: 'Makerspace' },
             { datetime: new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 7, 0).toISOString(), summary: 'Lämna bilen' },
             { datetime: new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 17, 0).toISOString(), summary: 'Kvällsmat' }

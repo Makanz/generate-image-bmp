@@ -59,3 +59,10 @@ node_modules/
 
 # Output
 output/
+
+# Environment
+.env
+
+# Dashboard build
+dashboard-web/node_modules/
+dist/

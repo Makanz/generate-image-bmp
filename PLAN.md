@@ -64,13 +64,13 @@ Skapa `server.js` med Express. Serverar statiska filer från `dashboard-web/`,
 anropar n8n-webhooks via axios, aggregerar data i `/api/data`.
 Installera: `express`, `node-cron`, `axios`, `dotenv`.
 
-### 2. `add-data-service`
+### 2. `add-data-service` ✅
 Skapa `src/services/data.js`.
 Anropar parallellt de tre n8n-webhooks (weather, calendar, lunch) via axios.
 Cacchar svaret i minnet (TTL = `REFRESH_INTERVAL_MINUTES`).
 Hanterar fel gracefully (returnerar `null` per källa om webhook är nere).
 
-### 3. `update-dashboard-ui`
+### 3. `update-dashboard-ui` ✅
 Uppdatera `dashboard-web/index.html`, `style.css`, `script.js`.
 - Ta bort: CPU, minne, disk, nätverk, system info
 - Lägg till: Väderkort, Kalenderkort (idag + kommande), Lunchkort, Datum & tid
@@ -78,32 +78,32 @@ Uppdatera `dashboard-web/index.html`, `style.css`, `script.js`.
 - Auto-refresh var 5:e minut
 - Behåll 800 px bredd för e-paper
 
-### 4. `update-image-generation`
+### 4. `update-image-generation` ✅
 Uppdatera `capture.js`:
 - Playwright öppnar `http://localhost:PORT/` och väntar på att sidan laddas
 - Screenshot → PNG (800×480)
 - sharp konverterar PNG → 1-bit monokrom BMP
 - Exporterar `generateImage()` för användning i `server.js`
 
-### 5. `add-image-endpoints`
+### 5. `add-image-endpoints` ✅
 I `server.js`:
 - `GET /dashboard.png` → serverar `output/dashboard.png`
 - `GET /dashboard.bmp` → serverar `output/dashboard.bmp`
 - `POST /api/refresh`  → triggar `generateImage()`, returnerar `{ ok: true }`
 
-### 6. `add-scheduling`
+### 6. `add-scheduling` ✅
 I `server.js`:
 - `node-cron` schema: var `REFRESH_INTERVAL_MINUTES` minut (default 15)
 - Kör `generateImage()` automatiskt
 - Genererar en bild vid serverstart (efter 5 sek delay)
 
-### 7. `add-docker`
+### 7. `add-docker` ✅
 - `Dockerfile`: Node 22 + Playwright-beroenden, exponera `PORT`
 - `docker-compose.yml`: dashboard-service, volumes för `output/`
 - `.env.example`: `PORT`, `N8N_WEBHOOK_*`, `REFRESH_INTERVAL_MINUTES`
 - `.dockerignore`
 
-### 8. `update-readme`
+### 8. `update-readme` ✅
 Uppdatera `README.md` med:
 - Arkitekturdiagram
 - Hur man sätter upp n8n-flödena (weather, calendar) — lunch är klar

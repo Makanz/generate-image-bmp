@@ -9,96 +9,36 @@
 <body>
     <div class="dashboard">
         <header class="header">
-            <h1>System Dashboard</h1>
+            <h1>Dashboard</h1>
             <span class="timestamp" id="timestamp"></span>
         </header>
 
         <div class="grid">
-            <div class="card">
-                <h2>Temperatur</h2>
-                <div class="gauge" id="temp-gauge">
-                    <div class="gauge-value">22.5°C</div>
-                    <div class="gauge-bar">
-                        <div class="gauge-fill" style="width: 65%"></div>
+            <div class="card" id="weather-card">
+                <h2>Väder</h2>
+                <div class="weather-content">
+                    <div class="weather-main">
+                        <span class="weather-temp" id="weather-temp">--°C</span>
+                        <span class="weather-desc" id="weather-desc">Laddar...</span>
+                    </div>
+                    <div class="weather-details">
+                        <span id="weather-location"></span>
+                        <span id="weather-precip"></span>
                     </div>
                 </div>
             </div>
 
-            <div class="card">
-                <h2>CPU</h2>
-                <div class="progress">
-                    <div class="progress-label">
-                        <span>Användning</span>
-                        <span id="cpu-value">45%</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="cpu-bar" style="width: 45%"></div>
-                    </div>
-                </div>
-                <div class="progress">
-                    <div class="progress-label">
-                        <span>Minne</span>
-                        <span id="mem-value">67%</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="mem-bar" style="width: 67%"></div>
-                    </div>
+            <div class="card" id="lunch-card">
+                <h2>Lunch</h2>
+                <div class="lunch-content" id="lunch-content">
+                    <p class="loading">Laddar...</p>
                 </div>
             </div>
 
-            <div class="card">
-                <h2>Nätverk</h2>
-                <div class="stat-row">
-                    <span class="stat-label">Uppe</span>
-                    <span class="stat-value" id="network-up">↑ 1.2 MB/s</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Nere</span>
-                    <span class="stat-value" id="network-down">↓ 3.4 MB/s</span>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>Disk</h2>
-                <div class="progress">
-                    <div class="progress-label">
-                        <span>Root</span>
-                        <span id="disk-root-value">78%</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="disk-root-bar" style="width: 78%"></div>
-                    </div>
-                </div>
-                <div class="progress">
-                    <div class="progress-label">
-                        <span>Data</span>
-                        <span id="disk-data-value">34%</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="disk-data-bar" style="width: 34%"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card wide">
-                <h2>System Info</h2>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">Hostname</span>
-                        <span class="info-value" id="hostname">raspberrypi</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Uptime</span>
-                        <span class="info-value" id="uptime">7d 12h 23m</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">IP</span>
-                        <span class="info-value" id="ip">192.168.1.100</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Last Update</span>
-                        <span class="info-value" id="last-update">2024-01-15 14:30</span>
-                    </div>
+            <div class="card wide" id="calendar-card">
+                <h2>Kalender</h2>
+                <div class="calendar-content" id="calendar-content">
+                    <p class="loading">Laddar...</p>
                 </div>
             </div>
         </div>

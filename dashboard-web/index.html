@@ -8,40 +8,87 @@
 </head>
 <body>
     <div class="dashboard">
-        <header class="header">
-            <h1>Dashboard</h1>
-            <span class="timestamp" id="timestamp"></span>
-        </header>
 
-        <div class="grid">
-            <div class="card" id="weather-card">
-                <h2>Väder</h2>
-                <div class="weather-content">
-                    <div class="weather-main">
-                        <span class="weather-temp" id="weather-temp">--°C</span>
-                        <span class="weather-desc" id="weather-desc">Laddar...</span>
-                    </div>
-                    <div class="weather-details">
-                        <span id="weather-location"></span>
-                        <span id="weather-precip"></span>
-                    </div>
+        <!-- Vänster: Temperaturer -->
+        <div class="col col-temp">
+            <div class="temp-section">
+                <div class="temp-label">UTE</div>
+                <div class="temp-row">
+                    <div class="temp-main" id="ute-temp">--</div>
+                    <div class="temp-unit">°C</div>
+                </div>
+                <div class="temp-forecast" id="ute-forecast">
+                    <span class="forecast-item" id="forecast-0">--°</span>
+                    <span class="forecast-sep">|</span>
+                    <span class="forecast-item" id="forecast-1">--°</span>
+                    <span class="forecast-sep">|</span>
+                    <span class="forecast-item" id="forecast-2">--°</span>
                 </div>
             </div>
 
-            <div class="card" id="lunch-card">
-                <h2>Lunch</h2>
+            <div class="divider-h"></div>
+
+            <div class="temp-section">
+                <div class="temp-label">INNE</div>
+                <div class="temp-row">
+                    <div class="temp-main" id="inne-temp">--</div>
+                    <div class="temp-unit">°C</div>
+                </div>
+                <div class="temp-rooms" id="inne-rooms">
+                    <div class="room-item">
+                        <span class="room-name">KÖK</span>
+                        <span class="room-temp" id="room-kok">--°</span>
+                    </div>
+                    <div class="room-sep">|</div>
+                    <div class="room-item">
+                        <span class="room-name">V-RUM</span>
+                        <span class="room-temp" id="room-vrum">--°</span>
+                    </div>
+                    <div class="room-sep">|</div>
+                    <div class="room-item">
+                        <span class="room-name">S-RUM</span>
+                        <span class="room-temp" id="room-srum">--°</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider-v"></div>
+
+        <!-- Mitten: Datum + Skollunch -->
+        <div class="col col-date">
+            <div class="date-section">
+                <div class="date-year" id="date-year">----</div>
+                <div class="date-day" id="date-day">--</div>
+                <div class="date-month" id="date-month">---</div>
+            </div>
+            <div class="lunch-section">
+                <div class="section-label">MAT I SKOLAN</div>
                 <div class="lunch-content" id="lunch-content">
                     <p class="loading">Laddar...</p>
                 </div>
             </div>
+        </div>
 
-            <div class="card wide" id="calendar-card">
-                <h2>Kalender</h2>
-                <div class="calendar-content" id="calendar-content">
+        <div class="divider-v"></div>
+
+        <!-- Höger: Kalender -->
+        <div class="col col-calendar">
+            <div class="cal-section">
+                <div class="section-label">KALENDER IDAG</div>
+                <div class="cal-events" id="cal-today">
+                    <p class="loading">Laddar...</p>
+                </div>
+            </div>
+            <div class="divider-h"></div>
+            <div class="cal-section">
+                <div class="section-label">IMORGON</div>
+                <div class="cal-events" id="cal-tomorrow">
                     <p class="loading">Laddar...</p>
                 </div>
             </div>
         </div>
+
     </div>
     <script src="script.js"></script>
 </body>

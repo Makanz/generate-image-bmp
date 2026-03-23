@@ -198,6 +198,12 @@ async function fetchData() {
         }
         const data = await response.json();
 
+        if (!data.weather && !data.indoor && !data.lunch && !data.calendar) {
+            generateMockData();
+            markDataLoaded();
+            return;
+        }
+
         updateTemperature(data.weather, data.indoor);
         updateSchoolLunch(data.lunch);
         updateCalendar(data.calendar);

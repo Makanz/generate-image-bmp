@@ -64,6 +64,12 @@ body {
     min-height: 0;
 }
 
+.temp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
 .temp-label {
     font-size: 13px;
     font-weight: 700;
@@ -83,15 +89,19 @@ body {
     letter-spacing: -5px;
 }
 
+#ute-temp,
+#inne-temp {
+    text-align: center;
+}
+
 .temp-unit {
     font-size: 16px;
     font-weight: 700;
-    margin-top: 8px;
-    margin-left: 2px;
 }
 
 .temp-forecast {
     display: flex;
+    justify-content: center;
     align-items: center;
     gap: 5px;
     margin-top: 6px;
@@ -109,9 +119,22 @@ body {
 
 .temp-rooms {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    margin-top: 6px;
+}
+
+.room-names {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.room-vals {
+    display: flex;
     align-items: center;
     gap: 4px;
-    margin-top: 6px;
 }
 
 .room-item {
@@ -121,7 +144,7 @@ body {
 }
 
 .room-name {
-    font-size: 8px;
+    font-size: 10px;
     letter-spacing: 0.5px;
     font-weight: 600;
 }
@@ -133,12 +156,12 @@ body {
 
 .room-sep {
     font-size: 14px;
-    margin-bottom: 2px;
 }
 
 /* ── Datumkolumn ── */
 .date-section {
     flex-shrink: 0;
+    text-align: center;
 }
 
 .date-year {
@@ -160,6 +183,8 @@ body {
     font-weight: 700;
     letter-spacing: 5px;
     margin-top: 2px;
+    border-bottom: 1px solid #000;
+    padding-bottom: 4px;
 }
 
 /* ── Lunchsektion ── */
@@ -226,7 +251,7 @@ body {
     font-size: 12px;
     font-weight: 700;
     flex-shrink: 0;
-    width: 40px;
+    width: 48px;
 }
 
 .cal-title {
@@ -234,6 +259,8 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+
 
 /* ── Generellt ── */
 .loading {

@@ -12,11 +12,11 @@
         <!-- Vänster: Temperaturer -->
         <div class="col col-temp">
             <div class="temp-section">
-                <div class="temp-label">UTE</div>
-                <div class="temp-row">
-                    <div class="temp-main" id="ute-temp">--</div>
+                <div class="temp-header">
+                    <div class="temp-label">UTE</div>
                     <div class="temp-unit">°C</div>
                 </div>
+                <div class="temp-main" id="ute-temp">--</div>
                 <div class="temp-forecast" id="ute-forecast">
                     <span class="forecast-item" id="forecast-0">--°</span>
                     <span class="forecast-sep">|</span>
@@ -29,24 +29,22 @@
             <div class="divider-h"></div>
 
             <div class="temp-section">
-                <div class="temp-label">INNE</div>
-                <div class="temp-row">
-                    <div class="temp-main" id="inne-temp">--</div>
+                <div class="temp-header">
+                    <div class="temp-label">INNE</div>
                     <div class="temp-unit">°C</div>
                 </div>
+                <div class="temp-main" id="inne-temp">--</div>
                 <div class="temp-rooms" id="inne-rooms">
-                    <div class="room-item">
+                    <div class="room-names">
                         <span class="room-name">KÖK</span>
-                        <span class="room-temp" id="room-kok">--°</span>
-                    </div>
-                    <div class="room-sep">|</div>
-                    <div class="room-item">
                         <span class="room-name">V-RUM</span>
-                        <span class="room-temp" id="room-vrum">--°</span>
-                    </div>
-                    <div class="room-sep">|</div>
-                    <div class="room-item">
                         <span class="room-name">S-RUM</span>
+                    </div>
+                    <div class="room-vals">
+                        <span class="room-temp" id="room-kok">--°</span>
+                        <span class="room-sep">|</span>
+                        <span class="room-temp" id="room-vrum">--°</span>
+                        <span class="room-sep">|</span>
                         <span class="room-temp" id="room-srum">--°</span>
                     </div>
                 </div>

@@ -9,6 +9,56 @@ const OUTPUT_DIR = path.join(__dirname, 'output');
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
+async function writeBmp1bit(width, height, pixelsGray, outputPath) {
+    const rowBytes = Math.ceil(width / 32) * 4;
+    const pixelDataSize = rowBytes * height;
+    const fileHeaderSize = 14;
+    const dibHeaderSize = 40;
+    const colorTableSize = 8;
+    const fileSize = fileHeaderSize + dibHeaderSize + colorTableSize + pixelDataSize;
+    const pixelOffset = fileHeaderSize + dibHeaderSize + colorTableSize;
+
+    const buf = Buffer.alloc(fileSize, 0);
+    let pos = 0;
+
+    buf.write('BM', pos); pos += 2;
+    buf.writeUInt32LE(fileSize, pos); pos += 4;
+    buf.writeUInt16LE(0, pos); pos += 2;
+    buf.writeUInt16LE(0, pos); pos += 2;
+    buf.writeUInt32LE(pixelOffset, pos); pos += 4;
+
+    buf.writeUInt32LE(dibHeaderSize, pos); pos += 4;
+    buf.writeInt32LE(width, pos); pos += 4;
+    buf.writeInt32LE(-height, pos); pos += 4;
+    buf.writeUInt16LE(1, pos); pos += 2;
+    buf.writeUInt16LE(1, pos); pos += 2;
+    buf.writeUInt32LE(0, pos); pos += 4;
+    buf.writeUInt32LE(pixelDataSize, pos); pos += 4;
+    buf.writeInt32LE(2835, pos); pos += 4;
+    buf.writeInt32LE(2835, pos); pos += 4;
+    buf.writeUInt32LE(2, pos); pos += 4;
+    buf.writeUInt32LE(2, pos); pos += 4;
+
+    buf.writeUInt32LE(0x00000000, pos); pos += 4;
+    buf.writeUInt32LE(0x00FFFFFF, pos); pos += 4;
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < rowBytes; x++) {
+            let byte = 0;
+            for (let bit = 0; bit < 8; bit++) {
+                const px = x * 8 + bit;
+                if (px < width) {
+                    const gray = pixelsGray[y * width + px];
+                    if (gray >= 128) byte |= (0x80 >> bit);
+                }
+            }
+            buf[pos + y * rowBytes + x] = byte;
+        }
+    }
+
+    await fs.writeFile(outputPath, buf);
+}
+
 async function generateImage(options = {}) {
     const {
         outputPng = path.join(OUTPUT_DIR, 'dashboard.png'),
@@ -55,13 +105,15 @@ async function generateImage(options = {}) {
     await browser.close();
     console.log(`[capture] PNG captured (${pngBuffer.length} bytes)`);
 
-    const [pngOut, bmpOut] = await Promise.all([
+    const { data: rawPixels, info } = await sharp(pngBuffer)
+        .greyscale()
+        .threshold(128)
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+    const [pngOut] = await Promise.all([
         sharp(pngBuffer).toFile(outputPng),
-        sharp(pngBuffer)
-            .greyscale()
-            .threshold(128)
-            .toFormat('bmp')
-            .toFile(outputBmp)
+        writeBmp1bit(info.width, info.height, rawPixels, outputBmp)
     ]);
 
     console.log(`[capture] PNG saved: ${outputPng}`);

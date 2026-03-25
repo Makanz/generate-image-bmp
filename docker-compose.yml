@@ -12,4 +12,4 @@ services:
       - N8N_WEBHOOK_LUNCH=${N8N_WEBHOOK_LUNCH}
       - REFRESH_INTERVAL_MINUTES=${REFRESH_INTERVAL_MINUTES:-15}
     volumes:
-      - ./output:/app/output
+      - /mnt/MD0-DATA/docker/trmnl-api/output:/app/output

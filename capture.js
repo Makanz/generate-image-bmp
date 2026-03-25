@@ -1,3 +1,4 @@
+const axios = require('axios');
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs').promises;
@@ -9,19 +10,61 @@ const OUTPUT_DIR = path.join(__dirname, 'output');
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
-async function getBrowser() {
+async function screenshotWithBrowserless(pageUrl) {
     const browserlessUrl = process.env.BROWSERLESS_URL;
-    if (browserlessUrl) {
-        const token = process.env.BROWSERLESS_TOKEN;
-        const endpointURL = token ? `${browserlessUrl}?token=${token}` : browserlessUrl;
-        console.log(`[capture] Connecting to browserless at ${browserlessUrl}`);
-        return await playwright.chromium.connectOverCDP(endpointURL);
+    const token = process.env.BROWSERLESS_TOKEN;
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = `Basic ${Buffer.from(token).toString('base64')}`;
     }
+
+    const body = {
+        url: pageUrl,
+        options: { type: 'png', fullPage: false },
+        viewport: { width: WIDTH, height: HEIGHT },
+        gotoOptions: { waitUntil: 'networkidle0', timeout: 30000 }
+    };
+
+    console.log(`[capture] Using Browserless REST API at ${browserlessUrl}/screenshot`);
+    const response = await axios.post(`${browserlessUrl}/screenshot`, body, {
+        headers,
+        responseType: 'arraybuffer',
+        timeout: 45000
+    });
+
+    return Buffer.from(response.data);
+}
+
+async function screenshotWithPlaywright(pageUrl) {
     console.log('[capture] Launching local Chromium...');
-    return await playwright.chromium.launch({
+    const browser = await playwright.chromium.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
+    const page = await browser.newPage();
+    await page.setViewportSize({ width: WIDTH, height: HEIGHT });
+
+    console.log(`[capture] Loading ${pageUrl}...`);
+    try {
+        const response = await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        if (!response || !response.ok()) {
+            throw new Error(`Server returned ${response ? response.status() : 'no response'}`);
+        }
+        await page.waitForFunction(
+            () => document.body.dataset.loaded === 'true',
+            { timeout: 10000 }
+        ).catch(() => console.warn('[capture] Data load timeout, proceeding with current content'));
+    } catch (err) {
+        console.error('[capture] Failed to load page:', err.message);
+        await browser.close();
+        throw err;
+    }
+
+    console.log('[capture] Taking screenshot...');
+    const pngBuffer = await page.screenshot({ type: 'png', fullPage: false });
+    await browser.close();
+    return pngBuffer;
 }
 
 async function writeBmp1bit(width, height, pixelsGray, outputPath) {
@@ -82,39 +125,16 @@ async function generateImage(options = {}) {
 
     await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
-    const browser = await getBrowser();
-    const page = await browser.newPage();
-    
-    await page.setViewportSize({ width: WIDTH, height: HEIGHT });
-    
     const url = process.env.CAPTURE_URL || `${BASE_URL}/`;
-    console.log(`[capture] Loading ${url}...`);
-    
-    try {
-        const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        if (!response || !response.ok()) {
-            throw new Error(`Server returned ${response ? response.status() : 'no response'}`);
-        }
-        
-        const dataLoaded = await page.waitForFunction(
-            () => document.body.dataset.loaded === 'true',
-            { timeout: 10000 }
-        ).then(() => true).catch(() => false);
-        
-        if (!dataLoaded) {
-            console.warn('[capture] Data load timeout, proceeding with current content');
-        }
-    } catch (err) {
-        console.error('[capture] Failed to load page:', err.message);
-        console.error('[capture] Make sure the server is running: npm start');
-        await browser.close();
-        throw err;
+    console.log(`[capture] Capturing ${url}...`);
+
+    let pngBuffer;
+    if (process.env.BROWSERLESS_URL) {
+        pngBuffer = await screenshotWithBrowserless(url);
+    } else {
+        pngBuffer = await screenshotWithPlaywright(url);
     }
 
-    console.log('[capture] Taking screenshot...');
-    const pngBuffer = await page.screenshot({ type: 'png', fullPage: false });
-
-    await browser.close();
     console.log(`[capture] PNG captured (${pngBuffer.length} bytes)`);
 
     const { data: rawPixels, info } = await sharp(pngBuffer)

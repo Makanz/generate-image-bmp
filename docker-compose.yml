@@ -4,12 +4,15 @@ services:
     container_name: dashboard
     restart: unless-stopped
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT:-3001}:3000"
     environment:
       - PORT=3000
       - N8N_WEBHOOK_WEATHER=${N8N_WEBHOOK_WEATHER}
       - N8N_WEBHOOK_CALENDAR=${N8N_WEBHOOK_CALENDAR}
       - N8N_WEBHOOK_LUNCH=${N8N_WEBHOOK_LUNCH}
+      - N8N_WEBHOOK_INDOOR=${N8N_WEBHOOK_INDOOR}
       - REFRESH_INTERVAL_MINUTES=${REFRESH_INTERVAL_MINUTES:-15}
+      - BROWSERLESS_URL=${BROWSERLESS_URL:-http://10.0.1.125:3000}
+      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN}
     volumes:
       - /mnt/MD0-DATA/docker/trmnl-api/output:/app/output

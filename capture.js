@@ -9,6 +9,21 @@ const OUTPUT_DIR = path.join(__dirname, 'output');
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
+async function getBrowser() {
+    const browserlessUrl = process.env.BROWSERLESS_URL;
+    if (browserlessUrl) {
+        const token = process.env.BROWSERLESS_TOKEN;
+        const endpointURL = token ? `${browserlessUrl}?token=${token}` : browserlessUrl;
+        console.log(`[capture] Connecting to browserless at ${browserlessUrl}`);
+        return await playwright.chromium.connectOverCDP(endpointURL);
+    }
+    console.log('[capture] Launching local Chromium...');
+    return await playwright.chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+}
+
 async function writeBmp1bit(width, height, pixelsGray, outputPath) {
     const rowBytes = Math.ceil(width / 32) * 4;
     const pixelDataSize = rowBytes * height;
@@ -67,10 +82,7 @@ async function generateImage(options = {}) {
 
     await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
-    const browser = await playwright.chromium.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+    const browser = await getBrowser();
     const page = await browser.newPage();
     
     await page.setViewportSize({ width: WIDTH, height: HEIGHT });

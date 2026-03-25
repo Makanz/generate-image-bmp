@@ -12,7 +12,8 @@ services:
       - N8N_WEBHOOK_LUNCH=${N8N_WEBHOOK_LUNCH}
       - N8N_WEBHOOK_INDOOR=${N8N_WEBHOOK_INDOOR}
       - REFRESH_INTERVAL_MINUTES=${REFRESH_INTERVAL_MINUTES:-15}
-      - BROWSERLESS_URL=${BROWSERLESS_URL:-http://<internal-host>:3000}
-      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN}
+      - BROWSERLESS_URL=http://<internal-host>:3000
+      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-}
+      - CAPTURE_URL=http://<internal-host>:3001
     volumes:
       - ./output:/app/output

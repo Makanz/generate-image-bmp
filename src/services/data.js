@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { fetchIndoorTemperatures } = require('./homey');
 
 const CACHE_TTL_MS = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '15', 10) * 60 * 1000;
 
@@ -13,6 +14,35 @@ function isCacheValid(source) {
     return Date.now() - cache[source].timestamp < CACHE_TTL_MS;
 }
 
+function normalizeWeather(raw) {
+    const entry = Array.isArray(raw) ? raw[0] : raw;
+    if (!entry) return null;
+
+    const current = entry.current?.temperature_2m ?? null;
+    const daily = entry.daily || {};
+    const maxTemps = daily.temperature_2m_max || [];
+    const minTemps = daily.temperature_2m_min || [];
+
+    // Skip index 0 (today), use the next 3 days as forecast
+    const forecast = maxTemps.slice(1, 4).map((max, i) => ({
+        temp: (max + (minTemps[i + 1] ?? max)) / 2,
+        max,
+        min: minTemps[i + 1] ?? null,
+        precipitation_probability: (daily.precipitation_probability_max || [])[i + 1] ?? null,
+        weather_code: (daily.weather_code || [])[i + 1] ?? null
+    }));
+
+    return {
+        outdoor: {
+            current,
+            forecast
+        },
+        current_weather_code: entry.current?.weather_code ?? null,
+        wind_speed: entry.current?.wind_speed_10m ?? null,
+        humidity: entry.current?.relative_humidity_2m ?? null
+    };
+}
+
 async function fetchWeather() {
     const url = process.env.N8N_WEBHOOK_WEATHER;
     if (!url) {
@@ -21,7 +51,7 @@ async function fetchWeather() {
     }
     try {
         const response = await axios.get(url, { timeout: 10000 });
-        return response.data;
+        return normalizeWeather(response.data);
     } catch (err) {
         console.error('[data] Weather fetch failed:', err.message);
         return null;
@@ -58,15 +88,44 @@ async function fetchLunch() {
     }
 }
 
+function normalizeIndoor(raw) {
+    const entry = Array.isArray(raw) ? raw[0] : raw;
+    if (!entry) return null;
+
+    const rooms = (entry.rooms || []).filter(r => r.temp !== null && r.temp !== undefined);
+    if (rooms.length === 0) return null;
+
+    const avg = rooms.reduce((sum, r) => sum + r.temp, 0) / rooms.length;
+
+    return {
+        current: entry.current ?? Math.round(avg * 10) / 10,
+        rooms
+    };
+}
+
 async function fetchIndoor() {
+    // Try Homey direct API first (requires HOMEY_IP + HOMEY_TOKEN, Homey Pro 2023+)
+    if (process.env.HOMEY_IP && process.env.HOMEY_TOKEN) {
+        return fetchIndoorTemperatures();
+    }
+
+    // Fallback: n8n webhook (recommended for older Homey models)
+    // Expected JSON format from the webhook:
+    // {
+    //   "current": 21.5,
+    //   "rooms": [
+    //     { "name": "Kök", "temp": 22.1 },
+    //     { "name": "Vardagsrum", "temp": 21.0 }
+    //   ]
+    // }
     const url = process.env.N8N_WEBHOOK_INDOOR;
     if (!url) {
-        console.warn('[data] N8N_WEBHOOK_INDOOR not configured');
+        console.warn('[data] HOMEY_IP/HOMEY_TOKEN and N8N_WEBHOOK_INDOOR not configured');
         return null;
     }
     try {
         const response = await axios.get(url, { timeout: 10000 });
-        return response.data;
+        return normalizeIndoor(response.data);
     } catch (err) {
         console.error('[data] Indoor fetch failed:', err.message);
         return null;

@@ -93,7 +93,7 @@ function updateTemperature(weather, indoor) {
 function updateSchoolLunch(data) {
     const container = document.getElementById('lunch-content');
 
-    if (!data || !data.menus || data.menus.length === 0) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
         container.innerHTML = '<p class="no-data">Ingen lunchdata</p>';
         return;
     }
@@ -105,19 +105,21 @@ function updateSchoolLunch(data) {
         return;
     }
 
-    const todayName = DAYS_SV[dayOfWeek];
-    const menu = data.menus.find(m => {
-        const day = (m.day || '').toLowerCase().trim();
-        return day === todayName || todayName.startsWith(day) || day.startsWith(todayName.slice(0, 3));
-    }) || data.menus[0];
+    const todayDate = now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' });
+    const todayDateCap = todayDate.charAt(0).toUpperCase() + todayDate.slice(1);
+
+    const menu = data.find(m => {
+        const datum = (m.datum || '').toLowerCase();
+        return datum.includes(todayDateCap.toLowerCase());
+    }) || data[0];
 
     if (!menu) {
         container.innerHTML = '<p class="no-data">Ingen lunch idag</p>';
         return;
     }
 
-    const dayLabel = menu.day ? `<div class="lunch-day-name">${escapeHtml(menu.day)}</div>` : '';
-    const mealsHtml = (menu.meals || [])
+    const dayLabel = menu.datum ? `<div class="lunch-day-name">${escapeHtml(menu.datum)}</div>` : '';
+    const mealsHtml = (menu.meny || [])
         .map(meal => `<div class="lunch-meal">${escapeHtml(meal)}</div>`)
         .join('');
 
@@ -187,12 +189,16 @@ function generateMockData() {
         }
     );
 
-    updateSchoolLunch({
-        menus: [{
-            day: 'Måndag',
-            meals: ['Ris & kyckling', 'Vegetarisk pasta']
-        }]
-    });
+    updateSchoolLunch([
+        {
+            datum: 'Måndag 23 Mars',
+            meny: ['Klimatsmartvecka: Chilipanna med ris', 'Falafelbiff med ris', 'Salladsbuffe']
+        },
+        {
+            datum: 'Tisdag 24 Mars',
+            meny: ['Västkustfisk med potatismos', 'Blomkålssoppa', 'Salladsbuffe']
+        }
+    ]);
 
     const today = new Date();
     const tomorrow = new Date(today);

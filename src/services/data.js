@@ -1,7 +1,15 @@
 const axios = require('axios');
 const { fetchIndoorTemperatures } = require('./homey');
 
-const CACHE_TTL_MS = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '15', 10) * 60 * 1000;
+const CACHE_TTL_MS = {
+    weather:  parseInt(process.env.WEATHER_REFRESH_MINUTES  || '15', 10) * 60 * 1000,
+    calendar: parseInt(process.env.CALENDAR_REFRESH_MINUTES || '15', 10) * 60 * 1000,
+    lunch:    parseInt(process.env.LUNCH_REFRESH_HOURS      || '24', 10) * 60 * 60 * 1000,
+    indoor:   parseInt(process.env.INDOOR_REFRESH_MINUTES   || '15', 10) * 60 * 1000,
+};
+
+// How long to wait before retrying a failed (null) fetch
+const ERROR_RETRY_MS = parseInt(process.env.ERROR_RETRY_MINUTES || '2', 10) * 60 * 1000;
 
 let cache = {
     weather: { data: null, timestamp: 0 },
@@ -11,7 +19,7 @@ let cache = {
 };
 
 function isCacheValid(source) {
-    return Date.now() - cache[source].timestamp < CACHE_TTL_MS;
+    return Date.now() - cache[source].timestamp < CACHE_TTL_MS[source];
 }
 
 function normalizeWeather(raw) {
@@ -144,28 +152,28 @@ async function fetchAllData() {
 
     if (!isCacheValid('weather')) {
         results.weather = await fetchWeather();
-        cache.weather = { data: results.weather, timestamp: now };
+        cache.weather = { data: results.weather, timestamp: results.weather !== null ? now : now - CACHE_TTL_MS.weather + ERROR_RETRY_MS };
     } else {
         results.weather = cache.weather.data;
     }
 
     if (!isCacheValid('calendar')) {
         results.calendar = await fetchCalendar();
-        cache.calendar = { data: results.calendar, timestamp: now };
+        cache.calendar = { data: results.calendar, timestamp: results.calendar !== null ? now : now - CACHE_TTL_MS.calendar + ERROR_RETRY_MS };
     } else {
         results.calendar = cache.calendar.data;
     }
 
     if (!isCacheValid('lunch')) {
         results.lunch = await fetchLunch();
-        cache.lunch = { data: results.lunch, timestamp: now };
+        cache.lunch = { data: results.lunch, timestamp: results.lunch !== null ? now : now - CACHE_TTL_MS.lunch + ERROR_RETRY_MS };
     } else {
         results.lunch = cache.lunch.data;
     }
 
     if (!isCacheValid('indoor')) {
         results.indoor = await fetchIndoor();
-        cache.indoor = { data: results.indoor, timestamp: now };
+        cache.indoor = { data: results.indoor, timestamp: results.indoor !== null ? now : now - CACHE_TTL_MS.indoor + ERROR_RETRY_MS };
     } else {
         results.indoor = cache.indoor.data;
     }

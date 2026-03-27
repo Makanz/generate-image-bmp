@@ -3,7 +3,7 @@ const express = require('express');
 const path = require('path');
 const cron = require('node-cron');
 const { generateImage } = require('./capture');
-const { fetchAllData } = require('./src/services/data');
+const { fetchAllData, fetchAllDataFresh } = require('./src/services/data');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +32,7 @@ app.get('/dashboard.bmp', (req, res) => {
 
 app.post('/api/refresh', async (req, res) => {
     try {
+        await fetchAllDataFresh();
         await generateImage();
         res.json({ ok: true, timestamp: new Date().toISOString() });
     } catch (err) {
@@ -41,8 +42,9 @@ app.post('/api/refresh', async (req, res) => {
 });
 
 cron.schedule(`*/${REFRESH_INTERVAL} * * * *`, async () => {
-    console.log(`[cron] Generating image (every ${REFRESH_INTERVAL} min)...`);
+    console.log(`[cron] Fetching fresh data and generating image (every ${REFRESH_INTERVAL} min)...`);
     try {
+        await fetchAllDataFresh();
         await generateImage();
         console.log('[cron] Image generated successfully.');
     } catch (err) {
@@ -53,8 +55,9 @@ cron.schedule(`*/${REFRESH_INTERVAL} * * * *`, async () => {
 app.listen(PORT, async () => {
     console.log(`Dashboard server running on http://localhost:${PORT}`);
     setTimeout(async () => {
-        console.log('[startup] Generating initial image...');
+        console.log('[startup] Fetching fresh data and generating initial image...');
         try {
+            await fetchAllDataFresh();
             await generateImage();
             console.log('[startup] Initial image ready.');
         } catch (err) {

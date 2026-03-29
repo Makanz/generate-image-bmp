@@ -7,7 +7,7 @@ const playwright = require('playwright');
 const WIDTH = 800;
 const HEIGHT = 480;
 const OUTPUT_DIR = path.join(__dirname, 'output');
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5173;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 async function screenshotWithBrowserless(pageUrl) {

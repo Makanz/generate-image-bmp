@@ -147,6 +147,10 @@ function renderCalendarEvents(events, containerId) {
 }
 
 function updateCalendar(data) {
+    // Hantera om data är en array med { events: [...] }
+    if (Array.isArray(data) && data.length > 0 && data[0].events) {
+        data = data[0];
+    }
     if (!data || !data.events) {
         renderCalendarEvents([], 'cal-today');
         renderCalendarEvents([], 'cal-tomorrow');

@@ -73,7 +73,7 @@ body {
 }
 
 .temp-label {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 800;
     letter-spacing: 2px;
     line-height: 1;
@@ -85,7 +85,7 @@ body {
 }
 
 .temp-main {
-    font-size: 108px;
+    font-size: 158px;
     font-weight: 700;
     line-height: 0.9;
     letter-spacing: -5px;
@@ -118,13 +118,13 @@ body {
 }
 
 .forecast-item {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 24px;
+    font-weight: 800;
     color: #000;
 }
 
 .forecast-sep {
-    font-size: 14px;
+    font-size: 16px;
     color: #000;
 }
 
@@ -143,7 +143,7 @@ body {
 .room-row {
     display: flex;
     justify-content: space-between;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 600;
     padding: 1px 0;
 }
@@ -170,7 +170,7 @@ body {
 }
 
 .date-day {
-    font-size: 90px;
+    font-size: 158px;
     font-weight: 700;
     line-height: 0.88;
     letter-spacing: -4px;
@@ -182,7 +182,7 @@ body {
     letter-spacing: 5px;
     margin-top: 2px;
     border-bottom: 1px solid #000;
-    padding-bottom: 14px;
+    padding-bottom: 34px;
 }
 
 /* ── Lunchsektion ── */
@@ -194,7 +194,7 @@ body {
 }
 
 .section-label {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 800;
     letter-spacing: 2px;
     margin-bottom: 4px;
@@ -246,7 +246,7 @@ body {
 }
 
 .cal-time {
-    font-size: 12px;
+    font-size: 16px;
     font-weight: 700;
     flex-shrink: 0;
     width: 48px;
@@ -273,6 +273,6 @@ body {
 
 .no-data {
     color: #000;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: bold;
 }

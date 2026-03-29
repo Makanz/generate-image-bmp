@@ -178,10 +178,14 @@ async function detectChanges(currentPath, previousPath) {
 
     const currentImage = await sharp(currentPath)
         .resize(width, height)
+        .greyscale()
+        .threshold(128)
         .raw()
         .toBuffer();
     const previousImage = await sharp(previousPath)
         .resize(width, height)
+        .greyscale()
+        .threshold(128)
         .raw()
         .toBuffer();
 

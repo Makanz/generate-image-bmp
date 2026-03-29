@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cron = require('node-cron');
-const { generateImage } = require('./capture');
+const { generateImage, getChanges } = require('./capture');
 const { fetchAllData, fetchAllDataFresh } = require('./src/services/data');
 
 const app = express();
@@ -28,6 +28,20 @@ app.get('/dashboard.png', (req, res) => {
 
 app.get('/dashboard.bmp', (req, res) => {
     res.sendFile(path.join(__dirname, 'output', 'dashboard.bmp'));
+});
+
+app.get('/dashboard.previous.png', (req, res) => {
+    res.sendFile(path.join(__dirname, 'output', 'dashboard.previous.png'));
+});
+
+app.get('/api/changes', async (req, res) => {
+    try {
+        const changes = await getChanges();
+        res.json(changes);
+    } catch (err) {
+        console.error('Error getting changes:', err.message);
+        res.status(500).json({ error: 'Failed to get changes' });
+    }
 });
 
 app.post('/api/refresh', async (req, res) => {

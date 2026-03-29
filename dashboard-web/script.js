@@ -33,15 +33,28 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function parseDate(dateStr) {
+    if (!dateStr) return null;
+    const str = String(dateStr);
+    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2}))?/);
+    if (!match) {
+        const fallback = new Date(str);
+        return isNaN(fallback.getTime()) ? null : fallback;
+    }
+    const [, year, month, day, hour = 0, minute = 0] = match;
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
+}
+
 function isSameDay(a, b) {
-    return a.getFullYear() === b.getFullYear()
-        && a.getMonth() === b.getMonth()
-        && a.getDate() === b.getDate();
+    if (!a || !b || isNaN(a.getTime()) || isNaN(b.getTime())) return false;
+    const aDate = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+    const bDate = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+    return aDate.getTime() === bDate.getTime();
 }
 
 function formatTime(datetimeStr) {
-    const date = new Date(datetimeStr);
-    if (isNaN(date.getTime())) return '';
+    const date = parseDate(datetimeStr);
+    if (!date) return '';
     const h = String(date.getHours()).padStart(2, '0');
     const m = String(date.getMinutes()).padStart(2, '0');
     return `${h}:${m}`;
@@ -147,7 +160,6 @@ function renderCalendarEvents(events, containerId) {
 }
 
 function updateCalendar(data) {
-    // Hantera om data är en array med { events: [...] }
     if (Array.isArray(data) && data.length > 0 && data[0].events) {
         data = data[0];
     }
@@ -158,16 +170,17 @@ function updateCalendar(data) {
     }
 
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const todayEvents = data.events.filter(e => {
-        const d = new Date(e.datetime || e.date || '');
+        const d = parseDate(e.datetime || e.date || '');
         return isSameDay(d, today);
     });
 
     const tomorrowEvents = data.events.filter(e => {
-        const d = new Date(e.datetime || e.date || '');
+        const d = parseDate(e.datetime || e.date || '');
         return isSameDay(d, tomorrow);
     });
 

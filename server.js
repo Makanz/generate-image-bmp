@@ -47,36 +47,32 @@ app.get('/api/changes', async (req, res) => {
 
 app.get('/api/image-region', async (req, res) => {
     try {
-        const { type, x, y, w, h } = req.query;
+        const { x, y, w, h } = req.query;
 
-        if (type === 'imageRegion') {
-            const imagePath = path.join(__dirname, 'output', 'dashboard.png');
-            
-            const left = parseInt(x, 10) || 0;
-            const top = parseInt(y, 10) || 0;
-            const width = parseInt(w, 10);
-            const height = parseInt(h, 10);
+        const imagePath = path.join(__dirname, 'output', 'dashboard.png');
+        
+        const left = parseInt(x, 10) || 0;
+        const top = parseInt(y, 10) || 0;
+        const width = parseInt(w, 10);
+        const height = parseInt(h, 10);
 
-            if (!width || !height) {
-                return res.status(400).json({ error: 'Missing or invalid w, h parameters' });
-            }
+        if (!width || !height) {
+            return res.status(400).json({ error: 'Missing or invalid w, h parameters' });
+        }
 
-            const regionBuffer = await sharp(imagePath)
-                .extract({ left, top, width, height })
-                .png()
-                .toBuffer();
+        const regionBuffer = await sharp(imagePath)
+            .extract({ left, top, width, height })
+            .png()
+            .toBuffer();
 
-            const format = req.query.format || 'base64';
-            if (format === 'base64') {
-                res.json({ 
-                    image: `data:image/png;base64,${regionBuffer.toString('base64')}`
-                });
-            } else {
-                res.set('Content-Type', 'image/png');
-                res.send(regionBuffer);
-            }
+        const format = req.query.format || 'base64';
+        if (format === 'base64') {
+            res.json({ 
+                image: `data:image/png;base64,${regionBuffer.toString('base64')}`
+            });
         } else {
-            res.status(400).json({ error: 'Unknown type parameter' });
+            res.set('Content-Type', 'image/png');
+            res.send(regionBuffer);
         }
     } catch (err) {
         console.error('Error getting image region:', err.message);

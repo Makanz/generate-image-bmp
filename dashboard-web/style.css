@@ -68,11 +68,13 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
+    font-size: 18px;
+    font-weight: 800;
 }
 
 .temp-label {
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 800;
     letter-spacing: 2px;
     line-height: 1;
 }
@@ -104,7 +106,7 @@ body {
 
 .temp-unit {
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 800;
 }
 
 .temp-forecast {
@@ -151,7 +153,7 @@ body {
 }
 
 .room-temp {
-    font-weight: 700;
+    font-weight: 800;
 }
 
 /* ── Datumkolumn ── */
@@ -161,8 +163,8 @@ body {
 }
 
 .date-year {
-    font-size: 18px;
-    font-weight: 400;
+    font-size: 30px;
+    font-weight: 600;
     letter-spacing: 4px;
     line-height: 1;
 }
@@ -180,7 +182,7 @@ body {
     letter-spacing: 5px;
     margin-top: 2px;
     border-bottom: 1px solid #000;
-    padding-bottom: 4px;
+    padding-bottom: 14px;
 }
 
 /* ── Lunchsektion ── */
@@ -192,8 +194,8 @@ body {
 }
 
 .section-label {
-    font-size: 10px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 800;
     letter-spacing: 2px;
     margin-bottom: 4px;
     border-bottom: 1px solid #000;
@@ -256,6 +258,8 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     color: #000;
+    font-size: 18px;
+    font-weight: 800;
 }
 
 
@@ -269,5 +273,6 @@ body {
 
 .no-data {
     color: #888 !important;
-    font-size: 12px;
+    font-size: 14px;
+    font-weight: bold;
 }

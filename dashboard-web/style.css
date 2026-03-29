@@ -17,7 +17,6 @@ body {
 .dashboard {
     display: flex;
     height: 100%;
-    border: 2px solid #000;
 }
 
 /* ── Kolumner ── */

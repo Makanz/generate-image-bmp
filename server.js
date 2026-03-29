@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cron = require('node-cron');
+const sharp = require('sharp');
 const { generateImage, getChanges } = require('./capture');
 const { fetchAllData, fetchAllDataFresh } = require('./src/services/data');
 
@@ -41,6 +42,45 @@ app.get('/api/changes', async (req, res) => {
     } catch (err) {
         console.error('Error getting changes:', err.message);
         res.status(500).json({ error: 'Failed to get changes' });
+    }
+});
+
+app.get('/api/image', async (req, res) => {
+    try {
+        const { type, x, y, w, h } = req.query;
+
+        if (type === 'imageRegion') {
+            const imagePath = path.join(__dirname, 'output', 'dashboard.png');
+            
+            const left = parseInt(x, 10) || 0;
+            const top = parseInt(y, 10) || 0;
+            const width = parseInt(w, 10);
+            const height = parseInt(h, 10);
+
+            if (!width || !height) {
+                return res.status(400).json({ error: 'Missing or invalid w, h parameters' });
+            }
+
+            const regionBuffer = await sharp(imagePath)
+                .extract({ left, top, width, height })
+                .png()
+                .toBuffer();
+
+            const format = req.query.format || 'base64';
+            if (format === 'base64') {
+                res.json({ 
+                    image: `data:image/png;base64,${regionBuffer.toString('base64')}`
+                });
+            } else {
+                res.set('Content-Type', 'image/png');
+                res.send(regionBuffer);
+            }
+        } else {
+            res.status(400).json({ error: 'Unknown type parameter' });
+        }
+    } catch (err) {
+        console.error('Error getting image region:', err.message);
+        res.status(500).json({ error: 'Failed to get image region' });
     }
 });
 

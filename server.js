@@ -45,7 +45,7 @@ app.get('/api/changes', async (req, res) => {
     }
 });
 
-app.get('/api/image', async (req, res) => {
+app.get('/api/image-region', async (req, res) => {
     try {
         const { type, x, y, w, h } = req.query;
 

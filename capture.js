@@ -3,6 +3,7 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs').promises;
 const playwright = require('playwright');
+const crypto = require('crypto');
 
 const WIDTH = 800;
 const HEIGHT = 480;
@@ -125,6 +126,13 @@ async function generateImage(options = {}) {
 
     await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
+    const previousPng = path.join(OUTPUT_DIR, 'dashboard.previous.png');
+    const currentPngExists = await fs.access(outputPng).then(() => true).catch(() => false);
+    if (currentPngExists) {
+        await fs.copyFile(outputPng, previousPng);
+        console.log(`[capture] Previous image saved: ${previousPng}`);
+    }
+
     const url = process.env.CAPTURE_URL || `${BASE_URL}/`;
     console.log(`[capture] Capturing ${url}...`);
 
@@ -154,6 +162,109 @@ async function generateImage(options = {}) {
     return { png: outputPng, bmp: outputBmp };
 }
 
+async function computeChecksum(filePath) {
+    try {
+        const buffer = await fs.readFile(filePath);
+        const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+        return `sha256:${hash}`;
+    } catch (err) {
+        return null;
+    }
+}
+
+async function detectChanges(currentPath, previousPath) {
+    const width = WIDTH;
+    const height = HEIGHT;
+
+    const currentImage = await sharp(currentPath)
+        .resize(width, height)
+        .raw()
+        .toBuffer();
+    const previousImage = await sharp(previousPath)
+        .resize(width, height)
+        .raw()
+        .toBuffer();
+
+    const changes = [];
+    const visited = Buffer.alloc(width * height, 0);
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            if (visited[idx]) continue;
+
+            const currentByte = currentImage[idx];
+            const previousByte = previousImage[idx];
+
+            if (currentByte !== previousByte) {
+                let minX = x, maxX = x, minY = y, maxY = y;
+                const stack = [[x, y]];
+
+                while (stack.length > 0) {
+                    const [cx, cy] = stack.pop();
+                    const cIdx = cy * width + cx;
+
+                    if (cx < 0 || cx >= width || cy < 0 || cy >= height) continue;
+                    if (visited[cIdx]) continue;
+
+                    const cCur = currentImage[cIdx];
+                    const cPrev = previousImage[cIdx];
+                    if (cCur === cPrev) continue;
+
+                    visited[cIdx] = 1;
+
+                    if (cx < minX) minX = cx;
+                    if (cx > maxX) maxX = cx;
+                    if (cy < minY) minY = cy;
+                    if (cy > maxY) maxY = cy;
+
+                    stack.push([cx + 1, cy]);
+                    stack.push([cx - 1, cy]);
+                    stack.push([cx, cy + 1]);
+                    stack.push([cx, cy - 1]);
+                }
+
+                changes.push({
+                    x: minX,
+                    y: minY,
+                    width: maxX - minX + 1,
+                    height: maxY - minY + 1
+                });
+            }
+        }
+    }
+
+    return changes;
+}
+
+async function getChanges() {
+    const currentPath = path.join(OUTPUT_DIR, 'dashboard.png');
+    const previousPath = path.join(OUTPUT_DIR, 'dashboard.previous.png');
+
+    const currentExists = await fs.access(currentPath).then(() => true).catch(() => false);
+    const previousExists = await fs.access(previousPath).then(() => true).catch(() => false);
+
+    if (!currentExists) {
+        return { changes: [], currentChecksum: null, previousChecksum: null, timestamp: new Date().toISOString() };
+    }
+
+    const currentChecksum = await computeChecksum(currentPath);
+    const previousChecksum = previousExists ? await computeChecksum(previousPath) : null;
+
+    if (!previousExists) {
+        return { changes: [], currentChecksum, previousChecksum, timestamp: new Date().toISOString() };
+    }
+
+    const changes = await detectChanges(currentPath, previousPath);
+
+    return {
+        changes,
+        currentChecksum,
+        previousChecksum,
+        timestamp: new Date().toISOString()
+    };
+}
+
 async function main() {
     console.log('Generating dashboard image...');
     await generateImage();
@@ -167,4 +278,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { generateImage };
+module.exports = { generateImage, getChanges };

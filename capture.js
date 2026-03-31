@@ -10,6 +10,7 @@ const HEIGHT = 480;
 const OUTPUT_DIR = path.join(__dirname, 'output');
 const PORT = process.env.PORT || 5173;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const MERGE_DISTANCE = 10;
 
 async function screenshotWithBrowserless(pageUrl) {
     const browserlessUrl = process.env.BROWSERLESS_URL;
@@ -238,7 +239,64 @@ async function detectChanges(currentPath, previousPath) {
         }
     }
 
-    return changes;
+    const mergedChanges = mergeRegions(changes, MERGE_DISTANCE);
+
+    return mergedChanges;
+}
+
+function mergeRegions(regions, distance) {
+    if (regions.length <= 1) return regions;
+
+    const merged = regions.map(r => ({
+        x: r.x,
+        y: r.y,
+        maxX: r.x + r.width - 1,
+        maxY: r.y + r.height - 1
+    }));
+
+    const used = new Set();
+    let changed = true;
+    while (changed) {
+        changed = false;
+
+        for (let i = 0; i < merged.length; i++) {
+            if (used.has(i)) continue;
+
+            for (let j = i + 1; j < merged.length; j++) {
+                if (used.has(j)) continue;
+
+                const r1 = merged[i];
+                const r2 = merged[j];
+
+                const horizontalOverlap = r1.x - distance <= r2.maxX + distance &&
+                                          r1.maxX + distance >= r2.x - distance;
+                const verticalOverlap = r1.y - distance <= r2.maxY + distance &&
+                                        r1.maxY + distance >= r2.y - distance;
+
+                if (horizontalOverlap && verticalOverlap) {
+                    r1.x = Math.min(r1.x, r2.x);
+                    r1.y = Math.min(r1.y, r2.y);
+                    r1.maxX = Math.max(r1.maxX, r2.maxX);
+                    r1.maxY = Math.max(r1.maxY, r2.maxY);
+                    used.add(j);
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    const result = [];
+    for (let i = 0; i < merged.length; i++) {
+        if (!used.has(i)) {
+            result.push({
+                x: merged[i].x,
+                y: merged[i].y,
+                width: merged[i].maxX - merged[i].x + 1,
+                height: merged[i].maxY - merged[i].y + 1
+            });
+        }
+    }
+    return result;
 }
 
 async function getChanges() {

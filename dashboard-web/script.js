@@ -118,13 +118,13 @@ function updateSchoolLunch(data) {
         return;
     }
 
-    const dayNames = ['söndag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag'];
-    const todayName = dayNames[dayOfWeek];
+    const todayDate = now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' });
+    const todayDateCap = todayDate.charAt(0).toUpperCase() + todayDate.slice(1);
 
     const menu = data.find(m => {
         const datum = (m.datum || '').toLowerCase();
-        return datum.includes(todayName);
-    });
+        return datum.includes(todayDateCap.toLowerCase());
+    }) || data[0];
 
     if (!menu) {
         container.innerHTML = '<p class="no-data">Ingen lunch idag</p>';

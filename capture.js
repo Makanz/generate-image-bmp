@@ -71,6 +71,18 @@ async function screenshotWithPlaywright(pageUrl) {
 }
 
 
+async function processToGreyscale(input, options = {}) {
+    const { width, height, resolveWithObject = false } = options;
+    let pipeline = sharp(input);
+    if (width && height) {
+        pipeline = pipeline.resize(width, height);
+    }
+    pipeline = pipeline.greyscale().threshold(128).raw();
+    return resolveWithObject
+        ? pipeline.toBuffer({ resolveWithObject: true })
+        : pipeline.toBuffer();
+}
+
 async function generateImage(options = {}) {
     const {
         outputPng = path.join(OUTPUT_DIR, 'dashboard.png'),
@@ -98,11 +110,7 @@ async function generateImage(options = {}) {
 
     console.log(`[capture] PNG captured (${pngBuffer.length} bytes)`);
 
-    const { data: rawPixels, info } = await sharp(pngBuffer)
-        .greyscale()
-        .threshold(128)
-        .raw()
-        .toBuffer({ resolveWithObject: true });
+    const { data: rawPixels, info } = await processToGreyscale(pngBuffer, { resolveWithObject: true });
 
     const [pngOut] = await Promise.all([
         sharp(pngBuffer).toFile(outputPng),
@@ -129,18 +137,8 @@ async function detectChanges(currentPath, previousPath) {
     const width = WIDTH;
     const height = HEIGHT;
 
-    const currentImage = await sharp(currentPath)
-        .resize(width, height)
-        .greyscale()
-        .threshold(128)
-        .raw()
-        .toBuffer();
-    const previousImage = await sharp(previousPath)
-        .resize(width, height)
-        .greyscale()
-        .threshold(128)
-        .raw()
-        .toBuffer();
+    const currentImage = await processToGreyscale(currentPath, { width, height });
+    const previousImage = await processToGreyscale(previousPath, { width, height });
 
     const changes = [];
     const visited = Buffer.alloc(width * height, 0);

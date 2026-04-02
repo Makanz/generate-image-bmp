@@ -4,13 +4,29 @@ const path = require('path');
 const cron = require('node-cron');
 const sharp = require('sharp');
 const { generateImage, getChanges } = require('./capture');
-const { fetchAllData, fetchAllDataFresh } = require('./src/services/data');
+const { fetchAllData, fetchAllDataFresh, fetchWeatherFresh } = require('./src/services/data');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const REFRESH_INTERVAL = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '15', 10);
 
-app.use(express.json());
+const WEATHER_ENSURE_RETRIES = 3;
+const WEATHER_ENSURE_DELAY_MS = 3000;
+
+async function generateImageWhenReady() {
+    let weather = (await fetchAllData()).weather;
+    for (let i = 0; i < WEATHER_ENSURE_RETRIES && (weather?.outdoor?.current == null); i++) {
+        console.warn(`[server] Väderdata saknas, försöker hämta igen (${i + 1}/${WEATHER_ENSURE_RETRIES})...`);
+        await new Promise(r => setTimeout(r, WEATHER_ENSURE_DELAY_MS));
+        weather = await fetchWeatherFresh();
+    }
+    if (weather?.outdoor?.current == null) {
+        console.warn('[server] Väderdata fortfarande otillgänglig, genererar bild ändå');
+    }
+    await generateImage();
+}
+
+
 app.use(express.static(path.join(__dirname, 'dashboard-web')));
 
 app.get('/api/data', async (req, res) => {
@@ -83,7 +99,7 @@ app.get('/api/image-region', async (req, res) => {
 app.post('/api/refresh', async (req, res) => {
     try {
         await fetchAllDataFresh();
-        await generateImage();
+        await generateImageWhenReady();
         res.json({ ok: true, timestamp: new Date().toISOString() });
     } catch (err) {
         console.error('Image generation failed:', err.message);
@@ -95,7 +111,7 @@ cron.schedule(`*/${REFRESH_INTERVAL} * * * *`, async () => {
     console.log(`[cron] Fetching fresh data and generating image (every ${REFRESH_INTERVAL} min)...`);
     try {
         await fetchAllDataFresh();
-        await generateImage();
+        await generateImageWhenReady();
         console.log('[cron] Image generated successfully.');
     } catch (err) {
         console.error('[cron] Image generation failed:', err.message);
@@ -108,7 +124,7 @@ app.listen(PORT, async () => {
         console.log('[startup] Fetching fresh data and generating initial image...');
         try {
             await fetchAllDataFresh();
-            await generateImage();
+            await generateImageWhenReady();
             console.log('[startup] Initial image ready.');
         } catch (err) {
             console.error('[startup] Image generation failed:', err.message);

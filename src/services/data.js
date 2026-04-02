@@ -189,4 +189,15 @@ async function fetchAllDataFresh() {
     return fetchAllData();
 }
 
-module.exports = { fetchAllData, fetchAllDataFresh };
+async function fetchWeatherFresh() {
+    cache.weather = { data: null, timestamp: 0 };
+    const weather = await fetchWeather();
+    const now = Date.now();
+    cache.weather = {
+        data: weather,
+        timestamp: weather !== null ? now : now - CACHE_TTL_MS.weather + ERROR_RETRY_MS
+    };
+    return weather;
+}
+
+module.exports = { fetchAllData, fetchAllDataFresh, fetchWeatherFresh };

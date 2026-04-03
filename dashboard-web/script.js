@@ -174,15 +174,21 @@ function updateCalendar(data) {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const sortByDate = (a, b) => {
+        const da = parseDate(a.datetime || a.date || '');
+        const db = parseDate(b.datetime || b.date || '');
+        return da - db;
+    };
+
     const todayEvents = data.events.filter(e => {
         const d = parseDate(e.datetime || e.date || '');
         return isSameDay(d, today);
-    });
+    }).sort(sortByDate);
 
     const tomorrowEvents = data.events.filter(e => {
         const d = parseDate(e.datetime || e.date || '');
         return isSameDay(d, tomorrow);
-    });
+    }).sort(sortByDate);
 
     renderCalendarEvents(todayEvents, 'cal-today');
     renderCalendarEvents(tomorrowEvents, 'cal-tomorrow');

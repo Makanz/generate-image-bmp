@@ -7,6 +7,7 @@ services:
       - "${PORT:-3001}:3000"
     environment:
       - PORT=3000
+      - TZ=Europe/Stockholm
       - N8N_WEBHOOK_WEATHER=${N8N_WEBHOOK_WEATHER}
       - N8N_WEBHOOK_CALENDAR=${N8N_WEBHOOK_CALENDAR}
       - N8N_WEBHOOK_LUNCH=${N8N_WEBHOOK_LUNCH}

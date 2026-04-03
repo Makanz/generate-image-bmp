@@ -85,6 +85,11 @@ async function fetchIndoorTemperatures() {
         .filter(r => r.temp !== null)
         .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
 
+    if (rooms.length === 0) {
+        console.warn('[homey] No temperature readings available');
+        return null;
+    }
+
     const avgTemp = rooms.reduce((sum, r) => sum + r.temp, 0) / rooms.length;
 
     return {

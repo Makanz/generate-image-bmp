@@ -147,57 +147,37 @@ async function fetchIndoor() {
     }
 }
 
-async function fetchAllData() {
+async function fetchSource(key, fetchFn) {
+    if (isCacheValid(key)) {
+        return cache[key].data;
+    }
+
     const now = Date.now();
-    const results = {
-        weather: null,
-        calendar: null,
-        lunch: null,
-        indoor: null,
-        timestamp: new Date().toISOString()
+    const data = await fetchFn();
+
+    cache[key] = {
+        data,
+        timestamp: data !== null ? now : Math.max(1, now - CACHE_TTL_MS[key] + ERROR_RETRY_MS)
     };
 
-    if (!isCacheValid('weather')) {
-        results.weather = await fetchWeather();
-        cache.weather = { 
-            data: results.weather, 
-            timestamp: results.weather !== null ? now : Math.max(1, now - CACHE_TTL_MS.weather + ERROR_RETRY_MS) 
-        };
-    } else {
-        results.weather = cache.weather.data;
-    }
+    return data;
+}
 
-    if (!isCacheValid('calendar')) {
-        results.calendar = await fetchCalendar();
-        cache.calendar = { 
-            data: results.calendar, 
-            timestamp: results.calendar !== null ? now : Math.max(1, now - CACHE_TTL_MS.calendar + ERROR_RETRY_MS) 
-        };
-    } else {
-        results.calendar = cache.calendar.data;
-    }
+async function fetchAllData() {
+    const [weather, calendar, lunch, indoor] = await Promise.all([
+        fetchSource('weather', fetchWeather),
+        fetchSource('calendar', fetchCalendar),
+        fetchSource('lunch', fetchLunch),
+        fetchSource('indoor', fetchIndoor)
+    ]);
 
-    if (!isCacheValid('lunch')) {
-        results.lunch = await fetchLunch();
-        cache.lunch = { 
-            data: results.lunch, 
-            timestamp: results.lunch !== null ? now : Math.max(1, now - CACHE_TTL_MS.lunch + ERROR_RETRY_MS) 
-        };
-    } else {
-        results.lunch = cache.lunch.data;
-    }
-
-    if (!isCacheValid('indoor')) {
-        results.indoor = await fetchIndoor();
-        cache.indoor = { 
-            data: results.indoor, 
-            timestamp: results.indoor !== null ? now : Math.max(1, now - CACHE_TTL_MS.indoor + ERROR_RETRY_MS) 
-        };
-    } else {
-        results.indoor = cache.indoor.data;
-    }
-
-    return results;
+    return {
+        weather,
+        calendar,
+        lunch,
+        indoor,
+        timestamp: new Date().toISOString()
+    };
 }
 
 async function fetchAllDataFresh() {

@@ -155,7 +155,7 @@ function updateSchoolLunch(data) {
         const datum = (m.datum || '').toLowerCase();
         
         // Kolla om datumsträngen innehåller dagens dag och månad
-        const containsDay = datum.includes(todayDay.toString());
+        const containsDay = new RegExp(`\\b${todayDay}\\b`).test(datum);
         const containsMonth = datum.includes(monthNameLower) || 
                              datum.includes(monthNameCapitalized) || 
                              datum.includes(monthNameUpper);

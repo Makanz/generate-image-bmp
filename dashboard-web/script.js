@@ -35,20 +35,34 @@ function escapeHtml(text) {
 
 function parseDate(dateStr) {
     if (!dateStr) return null;
-    const str = String(dateStr);
-    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2}))?/);
-    if (!match) {
-        const fallback = new Date(str);
-        return isNaN(fallback.getTime()) ? null : fallback;
+    const str = String(dateStr).trim();
+    
+    // För ISO 8601 format: YYYY-MM-DD eller YYYY-MM-DDTHH:mm:ss
+    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?/);
+    if (isoMatch) {
+        const [, year, month, day, hour = 0, minute = 0, second = 0] = isoMatch;
+        return new Date(Date.UTC(
+            parseInt(year),
+            parseInt(month) - 1,
+            parseInt(day),
+            parseInt(hour),
+            parseInt(minute),
+            parseInt(second)
+        ));
     }
-    const [, year, month, day, hour = 0, minute = 0] = match;
-    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
+    
+    // För andra datumsträngar, använd lokal tidszon konsekvent
+    const date = new Date(str);
+    return isNaN(date.getTime()) ? null : date;
 }
 
 function isSameDay(a, b) {
     if (!a || !b || isNaN(a.getTime()) || isNaN(b.getTime())) return false;
+    
+    // Skapa datum utan tidsdelar i lokal tid för båda
     const aDate = new Date(a.getFullYear(), a.getMonth(), a.getDate());
     const bDate = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+    
     return aDate.getTime() === bDate.getTime();
 }
 
@@ -118,12 +132,39 @@ function updateSchoolLunch(data) {
         return;
     }
 
-    const todayDate = now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' });
-    const todayDateCap = todayDate.charAt(0).toUpperCase() + todayDate.slice(1);
+    // Skapa normaliserade datumsträngar för matchning
+    const todayDay = now.getDate();
+    const todayMonth = now.getMonth(); // 0-index
+    
+    // Svenska månadsnamn i olika format
+    const monthNames = [
+        'januari', 'februari', 'mars', 'april', 'maj', 'juni',
+        'juli', 'augusti', 'september', 'oktober', 'november', 'december'
+    ];
+    
+    const monthNameLower = monthNames[todayMonth];
+    const monthNameUpper = monthNameLower.toUpperCase();
+    const monthNameCapitalized = monthNameLower.charAt(0).toUpperCase() + monthNameLower.slice(1);
+    
+    // Veckodag på svenska
+    const dayNames = ['söndag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag'];
+    const dayNameLower = dayNames[dayOfWeek];
+    const dayNameCapitalized = dayNameLower.charAt(0).toUpperCase() + dayNameLower.slice(1);
 
     const menu = data.find(m => {
         const datum = (m.datum || '').toLowerCase();
-        return datum.includes(todayDateCap.toLowerCase());
+        
+        // Kolla om datumsträngen innehåller dagens dag och månad
+        const containsDay = datum.includes(todayDay.toString());
+        const containsMonth = datum.includes(monthNameLower) || 
+                             datum.includes(monthNameCapitalized) || 
+                             datum.includes(monthNameUpper);
+        
+        // Alternativt kolla om det innehåller veckodagen
+        const containsWeekday = datum.includes(dayNameLower) || 
+                               datum.includes(dayNameCapitalized);
+        
+        return (containsDay && containsMonth) || containsWeekday;
     }) || data[0];
 
     if (!menu) {

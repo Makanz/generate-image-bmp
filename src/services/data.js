@@ -19,7 +19,14 @@ let cache = {
 };
 
 function isCacheValid(source) {
-    return Date.now() - cache[source].timestamp < CACHE_TTL_MS[source];
+    const cacheEntry = cache[source];
+    if (!cacheEntry || cacheEntry.timestamp <= 0) {
+        return false;
+    }
+    
+    const now = Date.now();
+    const age = now - cacheEntry.timestamp;
+    return age >= 0 && age < CACHE_TTL_MS[source];
 }
 
 function normalizeWeather(raw) {
@@ -152,28 +159,40 @@ async function fetchAllData() {
 
     if (!isCacheValid('weather')) {
         results.weather = await fetchWeather();
-        cache.weather = { data: results.weather, timestamp: results.weather !== null ? now : now - CACHE_TTL_MS.weather + ERROR_RETRY_MS };
+        cache.weather = { 
+            data: results.weather, 
+            timestamp: results.weather !== null ? now : Math.max(1, now - CACHE_TTL_MS.weather + ERROR_RETRY_MS) 
+        };
     } else {
         results.weather = cache.weather.data;
     }
 
     if (!isCacheValid('calendar')) {
         results.calendar = await fetchCalendar();
-        cache.calendar = { data: results.calendar, timestamp: results.calendar !== null ? now : now - CACHE_TTL_MS.calendar + ERROR_RETRY_MS };
+        cache.calendar = { 
+            data: results.calendar, 
+            timestamp: results.calendar !== null ? now : Math.max(1, now - CACHE_TTL_MS.calendar + ERROR_RETRY_MS) 
+        };
     } else {
         results.calendar = cache.calendar.data;
     }
 
     if (!isCacheValid('lunch')) {
         results.lunch = await fetchLunch();
-        cache.lunch = { data: results.lunch, timestamp: results.lunch !== null ? now : now - CACHE_TTL_MS.lunch + ERROR_RETRY_MS };
+        cache.lunch = { 
+            data: results.lunch, 
+            timestamp: results.lunch !== null ? now : Math.max(1, now - CACHE_TTL_MS.lunch + ERROR_RETRY_MS) 
+        };
     } else {
         results.lunch = cache.lunch.data;
     }
 
     if (!isCacheValid('indoor')) {
         results.indoor = await fetchIndoor();
-        cache.indoor = { data: results.indoor, timestamp: results.indoor !== null ? now : now - CACHE_TTL_MS.indoor + ERROR_RETRY_MS };
+        cache.indoor = { 
+            data: results.indoor, 
+            timestamp: results.indoor !== null ? now : Math.max(1, now - CACHE_TTL_MS.indoor + ERROR_RETRY_MS) 
+        };
     } else {
         results.indoor = cache.indoor.data;
     }
@@ -195,7 +214,7 @@ async function fetchWeatherFresh() {
     const now = Date.now();
     cache.weather = {
         data: weather,
-        timestamp: weather !== null ? now : now - CACHE_TTL_MS.weather + ERROR_RETRY_MS
+        timestamp: weather !== null ? now : Math.max(1, now - CACHE_TTL_MS.weather + ERROR_RETRY_MS)
     };
     return weather;
 }

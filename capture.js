@@ -51,8 +51,8 @@ async function screenshotWithPlaywright(pageUrl) {
     console.log(`[capture] Loading ${pageUrl}...`);
     try {
         const response = await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        if (!response || !response.ok()) {
-            throw new Error(`Server returned ${response ? response.status() : 'no response'}`);
+        if (response && response.status() >= 500) {
+            throw new Error(`Server returned ${response.status()}`);
         }
         await page.waitForFunction(
             () => document.body.dataset.loaded === 'true',

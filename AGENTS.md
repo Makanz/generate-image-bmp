@@ -2,19 +2,38 @@
 
 ## Project Overview
 
-This is a Node.js console application that generates a dashboard BMP/PNG image (800x480) with system metrics. The frontend is served via Vite for development preview.
+This is a TypeScript application that generates a dashboard BMP/PNG image (800x480) with weather, calendar, and lunch data from n8n webhooks. The app runs an Express server with cron-based image generation and serves a Vite-based frontend.
 
 ## Project Structure
 
 ```
 generate-image-bmp/
-├── capture.js          # Main Node.js script - generates dashboard image
+├── capture.ts          # Image generation (Playwright/Browserless → PNG → BMP)
+├── server.ts           # Express server with API endpoints and cron scheduler
+├── src/
+│   ├── image/
+│   │   └── bmp-writer.ts    # 1-bit BMP file writer
+│   └── services/
+│       ├── data.ts          # Data fetching and caching (weather, calendar, lunch, indoor)
+│       └── homey.ts         # Homey integration
 ├── dashboard-web/      # Frontend assets
 │   ├── index.html      # Dashboard HTML (Swedish UI)
 │   ├── script.js       # Frontend JavaScript
 │   └── style.css       # Dashboard styles
-├── output/             # Generated images go here
+├── tests/              # Jest test suite
+│   ├── bmp-writer.test.js
+│   ├── capture.test.js
+│   ├── data.test.js
+│   ├── homey.test.js
+│   └── server.test.js
+├── design/             # Design assets
+├── output/             # Generated images (dashboard.png, dashboard.bmp, dashboard.previous.png)
+├── dist/               # Compiled TypeScript output
 ├── package.json
+├── tsconfig.json
+├── jest.config.js
+├── Dockerfile
+├── docker-compose.yml
 └── AGENTS.md
 ```
 
@@ -28,55 +47,64 @@ npm install
 ### Development
 ```bash
 npm run dev          # Start Vite dev server for dashboard-web
+npm run start        # Start Express server (TypeScript via ts-node)
 ```
 
 ### Build
 ```bash
-npm run build        # Build dashboard-web for production
+npm run build        # Compile TypeScript + build dashboard-web for production
 npm run preview      # Preview production build
 ```
 
 ### Image Generation
 ```bash
-npm run generate     # Run capture.js to generate output/dashboard.png
+npm run generate     # Run capture.ts to generate output/dashboard.png + output/dashboard.bmp
 ```
 
 ### Testing
 ```bash
-npm test             # Run tests (currently a placeholder)
-```
-
-To add real tests, install a testing framework:
-```bash
-npm install --save-dev jest
+npm test             # Run Jest test suite
 ```
 
 ## Code Style Guidelines
 
-### JavaScript (Node.js - capture.js)
+### TypeScript (Backend - capture.ts, server.ts, src/)
 
-- **Module System**: Use CommonJS (`require()` and `module.exports`)
+- **Module System**: ES modules with `import`/`export` (compiled to CommonJS)
 - **Indentation**: 4 spaces
 - **Semicolons**: Required
+- **Type Annotations**: Explicit types for function parameters and return types
+- **Error Handling**: Use `try/catch` with `err: unknown` and type narrowing
 - **Async/Await**: Prefer async/await over raw Promises
-- **Error Handling**: Always use `.catch()` for promises or try/catch in async functions
 - **Constants**: UPPER_SNAKE_CASE for module-level constants (e.g., `WIDTH`, `HEIGHT`)
 
-```javascript
+```typescript
 // Good
-const sharp = require('sharp');
-const WIDTH = 800;
+import sharp from 'sharp';
+import path from 'path';
 
-async function generateDashboardImage(options = {}) {
+const WIDTH = 800;
+const HEIGHT = 480;
+
+interface GenerateImageOptions {
+    outputPng?: string;
+    outputBmp?: string;
+}
+
+async function generateImage(options: GenerateImageOptions = {}): Promise<{ png: string; bmp: string }> {
+    const { outputPng = path.join(OUTPUT_DIR, 'dashboard.png') } = options;
+    
     try {
-        await sharp(buffer).toFile(outputPath);
-    } catch (error) {
-        console.error('Failed to generate image:', error);
-        throw error;
+        await sharp(buffer).toFile(outputPng);
+        return { png: outputPng, bmp: outputBmp };
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        console.error('Failed to generate image:', message);
+        throw err;
     }
 }
 
-module.exports = { generateDashboardImage };
+export { generateImage };
 ```
 
 ### JavaScript (Frontend - dashboard-web/)
@@ -98,7 +126,7 @@ function updateGauge(elementId, value, max, unit) {
 
 async function fetchSystemData() {
     try {
-        const response = await fetch('/api/system');
+        const response = await fetch('/api/data');
         if (!response.ok) return null;
         return await response.json();
     } catch {
@@ -136,32 +164,65 @@ async function fetchSystemData() {
 
 ### File Naming
 
-- JavaScript files: `camelCase.js` (e.g., `capture.js`, `script.js`)
+- TypeScript files: `kebab-case.ts` or `camelCase.ts` (e.g., `capture.ts`, `bmp-writer.ts`)
+- JavaScript files: `camelCase.js` (e.g., `script.js`)
 - CSS files: `kebab-case.css` (e.g., `style.css`)
 - HTML files: `kebab-case.html` (e.g., `index.html`)
 
-### SVG Generation
+### Tests
 
-- Template literals for SVG string construction
-- Use Swedish labels in generated SVGs to match frontend
-- SVG dimensions match output: 800x480 pixels
+- **Framework**: Jest with ts-jest
+- **Location**: `tests/` directory
+- **Naming**: `*.test.js` or `*.test.ts`
+- **Environment**: Node
 
 ## Dependencies
 
-Key libraries used:
-- `sharp` - Image processing (PNG output)
-- `puppeteer`, `playwright` - Browser automation (optional)
-- `jsdom` - DOM simulation (optional)
-- `canvas` - Canvas API (optional)
-- `vite` - Build tool for frontend
+### Production
+- `sharp` - Image processing (PNG output, greyscale conversion)
+- `playwright` - Browser automation (screenshot capture)
+- `axios` - HTTP client (webhook requests)
+- `express` - Web server
+- `dotenv` - Environment variable management
+- `node-cron` - Scheduled tasks
+- `jsdom` - DOM simulation
+
+### Development
+- `typescript` - TypeScript compiler
+- `ts-node` - TypeScript execution
+- `vite` - Frontend build tool
+- `jest`, `ts-jest`, `supertest` - Testing
 
 ## Output
 
-Generated images are saved to `output/dashboard.png`. Ensure the `output/` directory exists before generation.
+Generated images are saved to `output/`:
+- `output/dashboard.png` - Color PNG
+- `output/dashboard.previous.png` - Previous PNG (for change detection)
+- `output/dashboard.bmp` - 1-bit monochrome BMP for ESP32
+
+Ensure the `output/` directory exists before generation (created automatically).
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | `3001` |
+| `REFRESH_INTERVAL_MINUTES` | Cron interval for image regeneration | `15` |
+| `N8N_WEBHOOK_WEATHER` | n8n webhook for weather data | - |
+| `N8N_WEBHOOK_CALENDAR` | n8n webhook for calendar data | - |
+| `N8N_WEBHOOK_LUNCH` | n8n webhook for lunch data | - |
+| `N8N_WEBHOOK_INDOOR` | n8n webhook for indoor temperature | - |
+| `HOMEY_IP` | Homey device IP | - |
+| `HOMEY_TOKEN` | Homey API token | - |
+| `HOMEY_USERNAME` | Homey username | - |
+| `HOMEY_PASSWORD` | Homey password | - |
+| `BROWSERLESS_URL` | Browserless REST API URL (optional) | - |
+| `BROWSERLESS_TOKEN` | Browserless auth token | - |
+| `CAPTURE_URL` | Direct URL for screenshot capture | `http://localhost:5173/` |
 
 ## UI Language
 
 The dashboard UI uses Swedish for labels:
-- "Temperatur", "CPU", "Nätverk", "Disk"
-- "Uppe" (up), "Nere" (down)
-- "Användning" (usage), "Minne" (memory)
+- "Väder" (weather), "Temperatur" (temperature)
+- "Kalender" (calendar), "Lunch" (lunch)
+- "Utomhus" (outdoor), "Inomhus" (indoor)

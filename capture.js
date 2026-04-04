@@ -290,4 +290,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { generateImage, getChanges };
+module.exports = { generateImage, getChanges, mergeRegions, detectChanges, computeChecksum };

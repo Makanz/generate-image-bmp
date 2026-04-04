@@ -1,4 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
+import { HTTP_TIMEOUT_MS, CAPABILITY_MEASURE_TEMPERATURE, LOCALE_SV } from '../utils/constants';
+import { handleApiError } from '../utils/errors';
 
 let cachedLocalToken: string | null = null;
 
@@ -8,11 +10,19 @@ async function loginLocal(ip: string, username: string, password: string): Promi
     const response = await axios.post(
         `http://${ip}/api/manager/users/login`,
         { username, password },
-        { timeout: 10000 }
+        { timeout: HTTP_TIMEOUT_MS }
     );
 
     cachedLocalToken = response.data.token;
     return cachedLocalToken as string;
+}
+
+function createHomeyClient(ip: string, token: string): AxiosInstance {
+    return axios.create({
+        baseURL: `http://${ip}/api`,
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: HTTP_TIMEOUT_MS
+    });
 }
 
 async function getClient(): Promise<AxiosInstance | null> {
@@ -20,22 +30,14 @@ async function getClient(): Promise<AxiosInstance | null> {
     if (!ip) return null;
 
     if (process.env.HOMEY_TOKEN) {
-        return axios.create({
-            baseURL: `http://${ip}/api`,
-            headers: { Authorization: `Bearer ${process.env.HOMEY_TOKEN}` },
-            timeout: 10000
-        });
+        return createHomeyClient(ip, process.env.HOMEY_TOKEN);
     }
 
     const username = process.env.HOMEY_USERNAME;
     const password = process.env.HOMEY_PASSWORD;
     if (username && password) {
         const token = await loginLocal(ip, username, password);
-        return axios.create({
-            baseURL: `http://${ip}/api`,
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 10000
-        });
+        return createHomeyClient(ip, token);
     }
 
     return null;
@@ -58,13 +60,16 @@ interface Device {
     capabilitiesObj?: Record<string, { value?: number | null }>;
 }
 
+function calculateAverage(rooms: Room[]): number {
+    return rooms.reduce((sum, r) => sum + (r.temp as number), 0) / rooms.length;
+}
+
 async function fetchIndoorTemperatures(): Promise<IndoorData | null> {
     let client: AxiosInstance | null;
     try {
         client = await getClient();
     } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('[homey] Auth failed:', message);
+        handleApiError('[homey] Auth failed', err);
         cachedLocalToken = null;
         return null;
     }
@@ -79,14 +84,13 @@ async function fetchIndoorTemperatures(): Promise<IndoorData | null> {
         const response = await client.get<Record<string, Device>>('/manager/devices/device/');
         devices = Object.values(response.data);
     } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('[homey] Failed to fetch devices:', message);
+        handleApiError('[homey] Failed to fetch devices', err);
         cachedLocalToken = null;
         return null;
     }
 
     const tempDevices = devices.filter(d =>
-        d.capabilities && d.capabilities.includes('measure_temperature')
+        d.capabilities && d.capabilities.includes(CAPABILITY_MEASURE_TEMPERATURE)
     );
 
     if (tempDevices.length === 0) {
@@ -100,14 +104,14 @@ async function fetchIndoorTemperatures(): Promise<IndoorData | null> {
             temp: d.capabilitiesObj?.measure_temperature?.value ?? null
         }))
         .filter(r => r.temp !== null)
-        .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+        .sort((a, b) => a.name.localeCompare(b.name, LOCALE_SV));
 
     if (rooms.length === 0) {
         console.warn('[homey] No temperature readings available');
         return null;
     }
 
-    const avgTemp = rooms.reduce((sum, r) => sum + (r.temp as number), 0) / rooms.length;
+    const avgTemp = calculateAverage(rooms);
 
     return {
         current: Math.round(avgTemp * 10) / 10,

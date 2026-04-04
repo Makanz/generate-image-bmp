@@ -226,4 +226,74 @@ describe('data.js', () => {
             expect(mockFn).toHaveBeenCalledTimes(2);
         });
     });
+
+    describe('race condition prevention', () => {
+        test('concurrent fetchAllData calls share single pending fetch', async () => {
+            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.WEATHER_REFRESH_MINUTES = '60';
+
+            const mockWeatherData = {
+                current: { temperature_2m: 20 },
+                daily: {
+                    temperature_2m_max: [20, 22, 23, 24],
+                    temperature_2m_min: [10, 11, 12, 13],
+                    precipitation_probability_max: [0, 10, 20, 30],
+                    weather_code: [0, 1, 2, 3]
+                }
+            };
+
+            let callCount = 0;
+            const mockFn = jest.fn(async () => {
+                callCount++;
+                await new Promise(r => setTimeout(r, 50));
+                return { data: [mockWeatherData] };
+            });
+            setupMocks(mockFn);
+
+            const { fetchAllData } = require('../src/services/data');
+
+            const [result1, result2] = await Promise.all([
+                fetchAllData(),
+                fetchAllData()
+            ]);
+
+            expect(callCount).toBe(1);
+            expect(result1).toEqual(result2);
+        });
+
+        test('fetchAllDataFresh does not cause duplicate fetches with concurrent requests', async () => {
+            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.WEATHER_REFRESH_MINUTES = '60';
+
+            const mockWeatherData = {
+                current: { temperature_2m: 20 },
+                daily: {
+                    temperature_2m_max: [20, 22, 23, 24],
+                    temperature_2m_min: [10, 11, 12, 13],
+                    precipitation_probability_max: [0, 10, 20, 30],
+                    weather_code: [0, 1, 2, 3]
+                }
+            };
+
+            let callCount = 0;
+            const mockFn = jest.fn(async () => {
+                callCount++;
+                await new Promise(r => setTimeout(r, 50));
+                return { data: [mockWeatherData] };
+            });
+            setupMocks(mockFn);
+
+            const { fetchAllData, fetchAllDataFresh } = require('../src/services/data');
+
+            await fetchAllData();
+
+            const [, result2] = await Promise.all([
+                fetchAllDataFresh(),
+                fetchAllData()
+            ]);
+
+            expect(callCount).toBe(2);
+            expect(result2.weather).not.toBeNull();
+        });
+    });
 });

@@ -83,6 +83,8 @@ let cache: Cache = {
     indoor: { data: null, timestamp: 0 }
 };
 
+let pendingFetches: Partial<Record<keyof Cache, Promise<unknown>>> = {};
+
 function isCacheValid(source: keyof Cache): boolean {
     const cacheEntry = cache[source];
     if (!cacheEntry || cacheEntry.timestamp <= 0) {
@@ -197,15 +199,25 @@ async function fetchSource<T>(key: keyof Cache, fetchFn: () => Promise<T | null>
         return cache[key].data as T | null;
     }
 
-    const now = Date.now();
-    const data = await fetchFn();
+    if (pendingFetches[key]) {
+        return pendingFetches[key] as Promise<T | null>;
+    }
 
-    cache[key] = {
-        data: data as never,
-        timestamp: data !== null ? now : Math.max(1, now - CACHE_TTL_MS[key] + ERROR_RETRY_MS)
-    };
+    const fetchPromise = (async (): Promise<T | null> => {
+        const data = await fetchFn();
+        const now = Date.now();
 
-    return data;
+        cache[key] = {
+            data: data as never,
+            timestamp: data !== null ? now : Math.max(1, now - CACHE_TTL_MS[key] + ERROR_RETRY_MS)
+        };
+
+        delete pendingFetches[key];
+        return data;
+    })();
+
+    pendingFetches[key] = fetchPromise;
+    return fetchPromise;
 }
 
 async function fetchAllData(): Promise<AllData> {
@@ -226,21 +238,16 @@ async function fetchAllData(): Promise<AllData> {
 }
 
 async function fetchAllDataFresh(): Promise<AllData> {
-    (Object.keys(cache) as Array<keyof Cache>).forEach(key => {
-        cache[key] = { data: null, timestamp: 0 };
-    });
+    cache.weather.timestamp = 0;
+    cache.calendar.timestamp = 0;
+    cache.lunch.timestamp = 0;
+    cache.indoor.timestamp = 0;
     return fetchAllData();
 }
 
 async function fetchWeatherFresh(): Promise<WeatherData | null> {
-    cache.weather = { data: null, timestamp: 0 };
-    const weather = await fetchWeather();
-    const now = Date.now();
-    cache.weather = {
-        data: weather,
-        timestamp: weather !== null ? now : Math.max(1, now - CACHE_TTL_MS.weather + ERROR_RETRY_MS)
-    };
-    return weather;
+    cache.weather.timestamp = 0;
+    return fetchSource('weather', fetchWeather);
 }
 
 export { fetchAllData, fetchAllDataFresh, fetchWeatherFresh };

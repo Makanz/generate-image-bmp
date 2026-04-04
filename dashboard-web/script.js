@@ -41,14 +41,14 @@ function parseDate(dateStr) {
     const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?/);
     if (isoMatch) {
         const [, year, month, day, hour = 0, minute = 0, second = 0] = isoMatch;
-        return new Date(Date.UTC(
+        return new Date(
             parseInt(year),
             parseInt(month) - 1,
             parseInt(day),
             parseInt(hour),
             parseInt(minute),
             parseInt(second)
-        ));
+        );
     }
     
     // För andra datumsträngar, använd lokal tidszon konsekvent

@@ -8,10 +8,10 @@
   },
   "scripts": {
     "dev": "vite dashboard-web",
-    "build": "vite build dashboard-web",
+    "build": "tsc && vite build dashboard-web",
     "preview": "vite preview dashboard-web",
-    "start": "node server.js",
-    "generate": "node capture.js",
+    "start": "ts-node --transpile-only server.ts",
+    "generate": "ts-node --transpile-only capture.ts",
     "test": "jest"
   },
   "keywords": [],
@@ -28,7 +28,15 @@
     "sharp": "^0.34.5"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.5.2",
+    "@types/supertest": "^7.2.0",
     "jest": "^30.3.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2",
     "vite": "^8.0.3"
   }
 }

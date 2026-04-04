@@ -2,24 +2,31 @@ import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import path from 'path';
 import cron from 'node-cron';
-import sharp from 'sharp';
+import { extractRegion } from './src/services/image-processing';
 import { generateImage, getChanges } from './capture';
 import { fetchAllData, fetchAllDataFresh, fetchWeatherFresh } from './src/services/data';
+import { handleApiError } from './src/utils/errors';
+import { getAppRoot } from './src/utils/path';
+import { SERVER_STARTUP_DELAY_MS } from './src/utils/constants';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const REFRESH_INTERVAL = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '15', 10);
-// When compiled to dist/, __dirname is dist/ — step up to project root
-const APP_ROOT = __filename.endsWith('.ts') ? __dirname : path.join(__dirname, '..');
+const APP_ROOT = getAppRoot();
 
 const WEATHER_ENSURE_RETRIES = 3;
 const WEATHER_ENSURE_DELAY_MS = 3000;
+const ALLOWED_OUTPUT_FILES = ['dashboard.png', 'dashboard.bmp', 'dashboard.previous.png'];
+
+async function sleep(ms: number): Promise<void> {
+    return new Promise(r => setTimeout(r, ms));
+}
 
 async function generateImageWhenReady(): Promise<void> {
     let weather = (await fetchAllData()).weather;
     for (let i = 0; i < WEATHER_ENSURE_RETRIES && (weather?.outdoor?.current == null); i++) {
         console.warn(`[server] Väderdata saknas, försöker hämta igen (${i + 1}/${WEATHER_ENSURE_RETRIES})...`);
-        await new Promise(r => setTimeout(r, WEATHER_ENSURE_DELAY_MS));
+        await sleep(WEATHER_ENSURE_DELAY_MS);
         weather = await fetchWeatherFresh();
     }
     if (weather?.outdoor?.current == null) {
@@ -28,18 +35,30 @@ async function generateImageWhenReady(): Promise<void> {
     await generateImage();
 }
 
+function withErrorHandling(context: string, handler: (req: Request, res: Response) => Promise<void>) {
+    return async (req: Request, res: Response) => {
+        try {
+            await handler(req, res);
+        } catch (err: unknown) {
+            handleApiError(context, err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    };
+}
 
 app.use(express.static(path.join(APP_ROOT, 'dashboard-web')));
 
-app.get('/api/data', async (_req: Request, res: Response) => {
-    try {
-        const data = await fetchAllData();
-        res.json(data);
-    } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('Error fetching data:', message);
-        res.status(500).json({ error: 'Failed to fetch data' });
+app.get('/api/data', withErrorHandling('Error fetching data', async (_req, res) => {
+    const data = await fetchAllData();
+    res.json(data);
+}));
+
+app.get('/output/:filename', (_req: Request, res: Response) => {
+    const filename = Array.isArray(_req.params.filename) ? _req.params.filename[0] : _req.params.filename;
+    if (!ALLOWED_OUTPUT_FILES.includes(filename)) {
+        return res.status(404).json({ error: 'File not found' });
     }
+    res.sendFile(path.join(APP_ROOT, 'output', filename));
 });
 
 app.get('/dashboard.png', (_req: Request, res: Response) => {
@@ -54,74 +73,57 @@ app.get('/dashboard.previous.png', (_req: Request, res: Response) => {
     res.sendFile(path.join(APP_ROOT, 'output', 'dashboard.previous.png'));
 });
 
-app.get('/api/changes', async (_req: Request, res: Response) => {
-    try {
-        const changes = await getChanges();
-        res.json(changes);
-    } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('Error getting changes:', message);
-        res.status(500).json({ error: 'Failed to get changes' });
+app.get('/api/changes', withErrorHandling('Error getting changes', async (_req, res) => {
+    const changes = await getChanges();
+    res.json(changes);
+}));
+
+app.get('/api/image-region', withErrorHandling('Error getting image region', async (req, res) => {
+    const { x, y, w, h } = req.query;
+
+    const imagePath = path.join(APP_ROOT, 'output', 'dashboard.png');
+
+    const left = parseInt(x as string, 10) || 0;
+    const top = parseInt(y as string, 10) || 0;
+    const width = parseInt(w as string, 10);
+    const height = parseInt(h as string, 10);
+
+    if (!width || !height) {
+        res.status(400).json({ error: 'Missing or invalid w, h parameters' });
+        return;
     }
-});
 
-app.get('/api/image-region', async (req: Request, res: Response) => {
-    try {
-        const { x, y, w, h } = req.query;
+    const regionBuffer = await extractRegion(imagePath, left, top, width, height);
 
-        const imagePath = path.join(APP_ROOT, 'output', 'dashboard.png');
-        
-        const left = parseInt(x as string, 10) || 0;
-        const top = parseInt(y as string, 10) || 0;
-        const width = parseInt(w as string, 10);
-        const height = parseInt(h as string, 10);
-
-        if (!width || !height) {
-            return res.status(400).json({ error: 'Missing or invalid w, h parameters' });
-        }
-
-        const regionBuffer = await sharp(imagePath)
-            .extract({ left, top, width, height })
-            .png()
-            .toBuffer();
-
-        const format = req.query.format || 'base64';
-        if (format === 'base64') {
-            res.json({ 
-                image: `data:image/png;base64,${regionBuffer.toString('base64')}`
-            });
-        } else {
-            res.set('Content-Type', 'image/png');
-            res.send(regionBuffer);
-        }
-    } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('Error getting image region:', message);
-        res.status(500).json({ error: 'Failed to get image region' });
+    const format = req.query.format || 'base64';
+    if (format === 'base64') {
+        res.json({
+            image: `data:image/png;base64,${regionBuffer.toString('base64')}`
+        });
+    } else {
+        res.set('Content-Type', 'image/png');
+        res.send(regionBuffer);
     }
-});
+}));
 
-app.post('/api/refresh', async (_req: Request, res: Response) => {
-    try {
-        await fetchAllDataFresh();
-        await generateImageWhenReady();
-        res.json({ ok: true, timestamp: new Date().toISOString() });
-    } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('Image generation failed:', message);
-        res.status(500).json({ ok: false, error: message });
-    }
-});
+app.post('/api/refresh', withErrorHandling('Image generation failed', async (_req, res) => {
+    await fetchAllDataFresh();
+    await generateImageWhenReady();
+    res.json({ ok: true, timestamp: new Date().toISOString() });
+}));
+
+async function scheduledImageGeneration(): Promise<void> {
+    console.log(`[cron] Fetching fresh data and generating image (every ${REFRESH_INTERVAL} min)...`);
+    await fetchAllDataFresh();
+    await generateImageWhenReady();
+    console.log('[cron] Image generated successfully.');
+}
 
 cron.schedule(`*/${REFRESH_INTERVAL} * * * *`, async () => {
-    console.log(`[cron] Fetching fresh data and generating image (every ${REFRESH_INTERVAL} min)...`);
     try {
-        await fetchAllDataFresh();
-        await generateImageWhenReady();
-        console.log('[cron] Image generated successfully.');
+        await scheduledImageGeneration();
     } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('[cron] Image generation failed:', message);
+        handleApiError('[cron] Image generation failed', err);
     }
 });
 
@@ -134,10 +136,9 @@ app.listen(PORT, async () => {
             await generateImageWhenReady();
             console.log('[startup] Initial image ready.');
         } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : 'Unknown error';
-            console.error('[startup] Image generation failed:', message);
+            handleApiError('[startup] Image generation failed', err);
         }
-    }, 5000);
+    }, SERVER_STARTUP_DELAY_MS);
 });
 
 export { app };

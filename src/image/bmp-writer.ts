@@ -1,11 +1,20 @@
 import * as fs from 'fs/promises';
+import {
+    DPI_PIXELS_PER_METER,
+    BITS_PER_DWORD,
+    COLOR_TABLE_ENTRIES,
+    COLOR_BLACK,
+    COLOR_WHITE,
+    GREYSCALE_THRESHOLD
+} from '../utils/constants';
 
 const FILE_HEADER_SIZE = 14;
 const DIB_HEADER_SIZE = 40;
-const COLOR_TABLE_SIZE = 8;
+const COLOR_TABLE_ENTRY_SIZE = 4;
+const COLOR_TABLE_SIZE = COLOR_TABLE_ENTRIES * COLOR_TABLE_ENTRY_SIZE;
 
 async function writeBmp(width: number, height: number, pixelsGray: Buffer, outputPath: string): Promise<void> {
-    const rowBytes = Math.ceil(width / 32) * 4;
+    const rowBytes = Math.ceil(width / BITS_PER_DWORD) * 4;
     const pixelDataSize = rowBytes * height;
     const fileSize = FILE_HEADER_SIZE + DIB_HEADER_SIZE + COLOR_TABLE_SIZE + pixelDataSize;
     const pixelOffset = FILE_HEADER_SIZE + DIB_HEADER_SIZE + COLOR_TABLE_SIZE;
@@ -26,13 +35,13 @@ async function writeBmp(width: number, height: number, pixelsGray: Buffer, outpu
     buf.writeUInt16LE(1, pos); pos += 2;
     buf.writeUInt32LE(0, pos); pos += 4;
     buf.writeUInt32LE(pixelDataSize, pos); pos += 4;
-    buf.writeInt32LE(2835, pos); pos += 4;
-    buf.writeInt32LE(2835, pos); pos += 4;
-    buf.writeUInt32LE(2, pos); pos += 4;
-    buf.writeUInt32LE(2, pos); pos += 4;
+    buf.writeInt32LE(DPI_PIXELS_PER_METER, pos); pos += 4;
+    buf.writeInt32LE(DPI_PIXELS_PER_METER, pos); pos += 4;
+    buf.writeUInt32LE(COLOR_TABLE_ENTRIES, pos); pos += 4;
+    buf.writeUInt32LE(COLOR_TABLE_ENTRIES, pos); pos += 4;
 
-    buf.writeUInt32LE(0x00000000, pos); pos += 4;
-    buf.writeUInt32LE(0x00FFFFFF, pos); pos += 4;
+    buf.writeUInt32LE(COLOR_BLACK, pos); pos += 4;
+    buf.writeUInt32LE(COLOR_WHITE, pos); pos += 4;
 
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < rowBytes; x++) {
@@ -41,7 +50,7 @@ async function writeBmp(width: number, height: number, pixelsGray: Buffer, outpu
                 const px = x * 8 + bit;
                 if (px < width) {
                     const gray = pixelsGray[y * width + px];
-                    if (gray >= 128) byte |= (0x80 >> bit);
+                    if (gray >= GREYSCALE_THRESHOLD) byte |= (0x80 >> bit);
                 }
             }
             buf[pos + y * rowBytes + x] = byte;

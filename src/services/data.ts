@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { fetchIndoorTemperatures } from './homey';
+import { HTTP_TIMEOUT_MS } from '../utils/constants';
+import { handleApiError } from '../utils/errors';
 
 const CACHE_TTL_MS: Record<string, number> = {
     weather:  parseInt(process.env.WEATHER_REFRESH_MINUTES  || '15', 10) * 60 * 1000,
@@ -49,10 +51,15 @@ interface CalendarData {
     }>;
 }
 
+interface LunchItem {
+    datum?: string;
+    meny?: string[];
+}
+
 interface AllData {
     weather: WeatherData | null;
     calendar: CalendarData | null;
-    lunch: unknown[] | null;
+    lunch: LunchItem[] | null;
     indoor: IndoorData | null;
     timestamp: string;
 }
@@ -65,7 +72,7 @@ interface CacheEntry<T> {
 interface Cache {
     weather: CacheEntry<WeatherData>;
     calendar: CacheEntry<CalendarData>;
-    lunch: CacheEntry<unknown[]>;
+    lunch: CacheEntry<LunchItem[]>;
     indoor: CacheEntry<IndoorData>;
 }
 
@@ -81,7 +88,7 @@ function isCacheValid(source: keyof Cache): boolean {
     if (!cacheEntry || cacheEntry.timestamp <= 0) {
         return false;
     }
-    
+
     const now = Date.now();
     const age = now - cacheEntry.timestamp;
     return age >= 0 && age < CACHE_TTL_MS[source];
@@ -130,54 +137,6 @@ function normalizeWeather(raw: WeatherRaw | WeatherRaw[] | null): WeatherData | 
     };
 }
 
-async function fetchWeather(): Promise<WeatherData | null> {
-    const url = process.env.N8N_WEBHOOK_WEATHER;
-    if (!url) {
-        console.warn('[data] N8N_WEBHOOK_WEATHER not configured');
-        return null;
-    }
-    try {
-        const response = await axios.get(url, { timeout: 10000 });
-        return normalizeWeather(response.data);
-    } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('[data] Weather fetch failed:', message);
-        return null;
-    }
-}
-
-async function fetchCalendar(): Promise<CalendarData | null> {
-    const url = process.env.N8N_WEBHOOK_CALENDAR;
-    if (!url) {
-        console.warn('[data] N8N_WEBHOOK_CALENDAR not configured');
-        return null;
-    }
-    try {
-        const response = await axios.get(url, { timeout: 10000 });
-        return response.data;
-    } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('[data] Calendar fetch failed:', message);
-        return null;
-    }
-}
-
-async function fetchLunch(): Promise<unknown[] | null> {
-    const url = process.env.N8N_WEBHOOK_LUNCH;
-    if (!url) {
-        console.warn('[data] N8N_WEBHOOK_LUNCH not configured');
-        return null;
-    }
-    try {
-        const response = await axios.get(url, { timeout: 10000 });
-        return response.data;
-    } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('[data] Lunch fetch failed:', message);
-        return null;
-    }
-}
-
 function normalizeIndoor(raw: { current?: number; rooms?: Room[] } | { current?: number; rooms?: Room[] }[] | null): IndoorData | null {
     const entry = Array.isArray(raw) ? raw[0] : raw;
     if (!entry) return null;
@@ -193,24 +152,44 @@ function normalizeIndoor(raw: { current?: number; rooms?: Room[] } | { current?:
     };
 }
 
+function createWebhookFetcher<T>(
+    sourceName: string,
+    envVar: string,
+    normalizer?: (raw: unknown) => T | null
+): () => Promise<T | null> {
+    return async (): Promise<T | null> => {
+        const url = process.env[envVar];
+        if (!url) {
+            console.warn(`[data] ${envVar} not configured`);
+            return null;
+        }
+        try {
+            const response = await axios.get(url, { timeout: HTTP_TIMEOUT_MS });
+            return normalizer ? normalizer(response.data) : response.data;
+        } catch (err: unknown) {
+            handleApiError(`[data] ${sourceName} fetch failed`, err);
+            return null;
+        }
+    };
+}
+
+const fetchWeather = createWebhookFetcher<WeatherData>('Weather', 'N8N_WEBHOOK_WEATHER', (raw: unknown) => normalizeWeather(raw as WeatherRaw | WeatherRaw[] | null));
+const fetchCalendar = createWebhookFetcher<CalendarData>('Calendar', 'N8N_WEBHOOK_CALENDAR');
+const fetchLunch = createWebhookFetcher<LunchItem[]>('Lunch', 'N8N_WEBHOOK_LUNCH');
+
 async function fetchIndoor(): Promise<IndoorData | null> {
     if (process.env.HOMEY_IP && process.env.HOMEY_TOKEN) {
         return fetchIndoorTemperatures();
     }
 
-    const url = process.env.N8N_WEBHOOK_INDOOR;
-    if (!url) {
+    const webhookFetcher = createWebhookFetcher<IndoorData>('Indoor', 'N8N_WEBHOOK_INDOOR', (raw: unknown) => normalizeIndoor(raw as { current?: number; rooms?: Room[] } | { current?: number; rooms?: Room[] }[] | null));
+
+    if (!process.env.N8N_WEBHOOK_INDOOR) {
         console.warn('[data] HOMEY_IP/HOMEY_TOKEN and N8N_WEBHOOK_INDOOR not configured');
         return null;
     }
-    try {
-        const response = await axios.get(url, { timeout: 10000 });
-        return normalizeIndoor(response.data);
-    } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('[data] Indoor fetch failed:', message);
-        return null;
-    }
+
+    return webhookFetcher();
 }
 
 async function fetchSource<T>(key: keyof Cache, fetchFn: () => Promise<T | null>): Promise<T | null> {
@@ -247,10 +226,9 @@ async function fetchAllData(): Promise<AllData> {
 }
 
 async function fetchAllDataFresh(): Promise<AllData> {
-    cache.weather = { data: null, timestamp: 0 };
-    cache.calendar = { data: null, timestamp: 0 };
-    cache.lunch = { data: null, timestamp: 0 };
-    cache.indoor = { data: null, timestamp: 0 };
+    (Object.keys(cache) as Array<keyof Cache>).forEach(key => {
+        cache[key] = { data: null, timestamp: 0 };
+    });
     return fetchAllData();
 }
 
@@ -266,4 +244,4 @@ async function fetchWeatherFresh(): Promise<WeatherData | null> {
 }
 
 export { fetchAllData, fetchAllDataFresh, fetchWeatherFresh };
-export type { WeatherData, IndoorData, CalendarData, AllData, ForecastDay, Room };
+export type { WeatherData, IndoorData, CalendarData, AllData, ForecastDay, Room, LunchItem };

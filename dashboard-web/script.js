@@ -1,238 +1,10 @@
-const MONTHS_SV = ['JANUARI','FEBRUARI','MARS','APRIL','MAJ','JUNI','JULI','AUGUSTI','SEPTEMBER','OKTOBER','NOVEMBER','DECEMBER'];
-const DAYS_SV = ['söndag','måndag','tisdag','onsdag','torsdag','fredag','lördag'];
-
-const prevTemps = { ute: null, inne: null };
-
-function getTrend(current, previous) {
-    if (previous === null) return '';
-    const diff = current - previous;
-    if (diff > 0.5) return '↑';
-    if (diff < -0.5) return '↓';
-    return '→';
-}
-
-function renderRoomChart(rooms) {
-    const container = document.getElementById('room-chart');
-    if (!rooms || rooms.length === 0) {
-        container.innerHTML = '';
-        return;
-    }
-
-    const rows = rooms.map(room => {
-        const val = Math.round(room.temp);
-        const label = room.name.toUpperCase();
-        return `<div class="room-row"><span class="room-name">${escapeHtml(label)}</span><span class="room-temp">${val}°</span></div>`;
-    });
-
-    container.innerHTML = rows.join('');
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function parseDate(dateStr) {
-    if (!dateStr) return null;
-    const str = String(dateStr).trim();
-    
-    // För ISO 8601 format: YYYY-MM-DD eller YYYY-MM-DDTHH:mm:ss
-    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?/);
-    if (isoMatch) {
-        const [, year, month, day, hour = 0, minute = 0, second = 0] = isoMatch;
-        return new Date(
-            parseInt(year),
-            parseInt(month) - 1,
-            parseInt(day),
-            parseInt(hour),
-            parseInt(minute),
-            parseInt(second)
-        );
-    }
-    
-    // För andra datumsträngar, använd lokal tidszon konsekvent
-    const date = new Date(str);
-    return isNaN(date.getTime()) ? null : date;
-}
-
-function isSameDay(a, b) {
-    if (!a || !b || isNaN(a.getTime()) || isNaN(b.getTime())) return false;
-    
-    // Skapa datum utan tidsdelar i lokal tid för båda
-    const aDate = new Date(a.getFullYear(), a.getMonth(), a.getDate());
-    const bDate = new Date(b.getFullYear(), b.getMonth(), b.getDate());
-    
-    return aDate.getTime() === bDate.getTime();
-}
-
-function formatTime(datetimeStr) {
-    const date = parseDate(datetimeStr);
-    if (!date) return '';
-    const h = String(date.getHours()).padStart(2, '0');
-    const m = String(date.getMinutes()).padStart(2, '0');
-    return `${h}:${m}`;
-}
+const UI_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 function updateDate() {
     const now = new Date();
     document.getElementById('date-year').textContent = now.getFullYear();
     document.getElementById('date-day').textContent = now.getDate();
     document.getElementById('date-month').textContent = MONTHS_SV[now.getMonth()];
-}
-
-function updateTemperature(weather, indoor) {
-    // Utomhus
-    if (weather) {
-        const current = weather.outdoor?.current ?? weather.temperature;
-        if (current !== undefined) {
-            const rounded = Math.round(current);
-            const trend = getTrend(rounded, prevTemps.ute);
-            prevTemps.ute = rounded;
-            document.getElementById('ute-temp-val').textContent = rounded;
-            document.getElementById('ute-trend').textContent = trend;
-        }
-        const forecast = weather.outdoor?.forecast || [];
-        for (let i = 0; i < 3; i++) {
-            const el = document.getElementById(`forecast-${i}`);
-            if (el) {
-                el.textContent = forecast[i] !== undefined
-                    ? Math.round(forecast[i].temp ?? forecast[i]) + '°'
-                    : '--°';
-            }
-        }
-    }
-
-    // Inomhus
-    if (indoor) {
-        const current = indoor.current;
-        if (current !== undefined) {
-            const rounded = Math.round(current);
-            const trend = getTrend(rounded, prevTemps.inne);
-            prevTemps.inne = rounded;
-            document.getElementById('inne-temp-val').textContent = rounded;
-            document.getElementById('inne-trend').textContent = trend;
-        }
-        renderRoomChart(indoor.rooms || []);
-    }
-}
-
-function updateSchoolLunch(data) {
-    const container = document.getElementById('lunch-content');
-
-    if (!data || !Array.isArray(data) || data.length === 0) {
-        container.innerHTML = '<p class="no-data">Ingen lunchdata</p>';
-        return;
-    }
-
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-        container.innerHTML = '<p class="no-data">Ingen lunch idag</p>';
-        return;
-    }
-
-    // Skapa normaliserade datumsträngar för matchning
-    const todayDay = now.getDate();
-    const todayMonth = now.getMonth(); // 0-index
-    
-    // Svenska månadsnamn i olika format
-    const monthNames = [
-        'januari', 'februari', 'mars', 'april', 'maj', 'juni',
-        'juli', 'augusti', 'september', 'oktober', 'november', 'december'
-    ];
-    
-    const monthNameLower = monthNames[todayMonth];
-    const monthNameUpper = monthNameLower.toUpperCase();
-    const monthNameCapitalized = monthNameLower.charAt(0).toUpperCase() + monthNameLower.slice(1);
-    
-    // Veckodag på svenska
-    const dayNames = ['söndag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag'];
-    const dayNameLower = dayNames[dayOfWeek];
-    const dayNameCapitalized = dayNameLower.charAt(0).toUpperCase() + dayNameLower.slice(1);
-
-    const menu = data.find(m => {
-        const datum = (m.datum || '').toLowerCase();
-        
-        // Kolla om datumsträngen innehåller dagens dag och månad
-        const containsDay = new RegExp(`\\b${todayDay}\\b`).test(datum);
-        const containsMonth = datum.includes(monthNameLower) || 
-                             datum.includes(monthNameCapitalized) || 
-                             datum.includes(monthNameUpper);
-        
-        // Alternativt kolla om det innehåller veckodagen
-        const containsWeekday = datum.includes(dayNameLower) || 
-                               datum.includes(dayNameCapitalized);
-        
-        return (containsDay && containsMonth) || containsWeekday;
-    }) || data[0];
-
-    if (!menu) {
-        container.innerHTML = '<p class="no-data">Ingen lunch idag</p>';
-        return;
-    }
-
-    const dayLabel = menu.datum ? `<div class="lunch-day-name">${escapeHtml(menu.datum)}</div>` : '';
-    const mealsHtml = (menu.meny || [])
-        .map(meal => `<div class="lunch-meal">${escapeHtml(meal)}</div>`)
-        .join('');
-
-    container.innerHTML = dayLabel + (mealsHtml || '<p class="no-data">Ingen lunch idag</p>');
-}
-
-function renderCalendarEvents(events, containerId) {
-    const container = document.getElementById(containerId);
-
-    if (!events || events.length === 0) {
-        container.innerHTML = '<p class="no-data">Inga händelser</p>';
-        return;
-    }
-
-    const html = events.map(event => {
-        const time = formatTime(event.datetime || event.date || '');
-        const title = escapeHtml(event.summary || event.title || '');
-        const timeHtml = time
-            ? `<span class="cal-time">${time}</span>`
-            : `<span class="cal-time"></span>`;
-        return `<div class="cal-event">${timeHtml}<span class="cal-title">${title}</span></div>`;
-    }).join('');
-
-    container.innerHTML = html;
-}
-
-function updateCalendar(data) {
-    if (Array.isArray(data) && data.length > 0 && data[0].events) {
-        data = data[0];
-    }
-    if (!data || !data.events) {
-        renderCalendarEvents([], 'cal-today');
-        renderCalendarEvents([], 'cal-tomorrow');
-        return;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const sortByDate = (a, b) => {
-        const da = parseDate(a.datetime || a.date || '');
-        const db = parseDate(b.datetime || b.date || '');
-        return da - db;
-    };
-
-    const todayEvents = data.events.filter(e => {
-        const d = parseDate(e.datetime || e.date || '');
-        return isSameDay(d, today);
-    }).sort(sortByDate);
-
-    const tomorrowEvents = data.events.filter(e => {
-        const d = parseDate(e.datetime || e.date || '');
-        return isSameDay(d, tomorrow);
-    }).sort(sortByDate);
-
-    renderCalendarEvents(todayEvents, 'cal-today');
-    renderCalendarEvents(tomorrowEvents, 'cal-tomorrow');
 }
 
 function generateMockData() {
@@ -283,6 +55,10 @@ function markDataLoaded() {
     document.body.dataset.loaded = 'true';
 }
 
+function allDataEmpty(data) {
+    return !data.weather && !data.indoor && !data.lunch && !data.calendar;
+}
+
 async function fetchData() {
     try {
         const response = await fetch('/api/data');
@@ -294,7 +70,7 @@ async function fetchData() {
         }
         const data = await response.json();
 
-        if (!data.weather && !data.indoor && !data.lunch && !data.calendar) {
+        if (allDataEmpty(data)) {
             generateMockData();
             markDataLoaded();
             return;
@@ -317,4 +93,4 @@ fetchData();
 setInterval(() => {
     updateDate();
     fetchData();
-}, 5 * 60 * 1000);
+}, UI_REFRESH_INTERVAL_MS);

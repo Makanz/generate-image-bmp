@@ -3,15 +3,14 @@ import path from 'path';
 import fs from 'fs/promises';
 import { writeBmp } from './src/image/bmp-writer';
 import { createScreenshotProvider } from './src/services/screenshot';
-import { processToGreyscale } from './src/services/image-processing';
 import { getChanges as getChangesImpl, mergeRegions as mergeRegionsImpl, detectChanges as detectChangesImpl, computeChecksum as computeChecksumImpl, ChangeRegion, ChangesResult } from './src/services/change-detection';
-import { WIDTH, HEIGHT } from './src/utils/constants';
+import { WIDTH, HEIGHT, GREYSCALE_THRESHOLD } from './src/utils/constants';
 import { getAppRoot } from './src/utils/path';
 
 const APP_ROOT = getAppRoot();
 const OUTPUT_DIR = path.join(APP_ROOT, 'output');
 const PORT = process.env.PORT || 5173;
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const BASE_URL = process.env.CAPTURE_URL || `http://localhost:${PORT}`;
 
 interface GenerateImageOptions {
     outputPng?: string;
@@ -41,12 +40,15 @@ async function generateImage(options: GenerateImageOptions = {}): Promise<{ png:
 
     console.log(`[capture] PNG captured (${pngBuffer.length} bytes)`);
 
-    const result = await processToGreyscale(pngBuffer, { resolveWithObject: true });
-    const typedResult = result as { data: Buffer; info: sharp.OutputInfo };
+    const basePipeline = sharp(pngBuffer);
+
+    const [{ data: greyscaleData, info: greyscaleInfo }] = await Promise.all([
+        basePipeline.clone().greyscale().threshold(GREYSCALE_THRESHOLD).raw().toBuffer({ resolveWithObject: true })
+    ]);
 
     await Promise.all([
-        sharp(pngBuffer).toFile(outputPng),
-        writeBmp(typedResult.info.width, typedResult.info.height, typedResult.data, outputBmp)
+        basePipeline.clone().toFile(outputPng),
+        writeBmp(greyscaleInfo.width, greyscaleInfo.height, greyscaleData, outputBmp)
     ]);
 
     console.log(`[capture] PNG saved: ${outputPng}`);

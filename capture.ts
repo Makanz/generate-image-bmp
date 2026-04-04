@@ -8,7 +8,9 @@ import { writeBmp } from './src/image/bmp-writer';
 
 const WIDTH = 800;
 const HEIGHT = 480;
-const OUTPUT_DIR = path.join(__dirname, 'output');
+// When compiled to dist/, __dirname is dist/ — step up to project root
+const APP_ROOT = __filename.endsWith('.ts') ? __dirname : path.join(__dirname, '..');
+const OUTPUT_DIR = path.join(APP_ROOT, 'output');
 const PORT = process.env.PORT || 5173;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const MERGE_DISTANCE = 10;

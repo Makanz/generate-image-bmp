@@ -1,7 +1,7 @@
 const fs = require('fs').promises;
 const os = require('os');
 const path = require('path');
-const { writeBmp } = require('../src/image/bmp-writer');
+const { writeBmp } = require('../src/image/bmp-writer.ts');
 
 const FILE_HEADER_SIZE = 14;
 const DIB_HEADER_SIZE = 40;

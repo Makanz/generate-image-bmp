@@ -9,6 +9,8 @@ import { fetchAllData, fetchAllDataFresh, fetchWeatherFresh } from './src/servic
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const REFRESH_INTERVAL = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '15', 10);
+// When compiled to dist/, __dirname is dist/ — step up to project root
+const APP_ROOT = __filename.endsWith('.ts') ? __dirname : path.join(__dirname, '..');
 
 const WEATHER_ENSURE_RETRIES = 3;
 const WEATHER_ENSURE_DELAY_MS = 3000;
@@ -27,7 +29,7 @@ async function generateImageWhenReady(): Promise<void> {
 }
 
 
-app.use(express.static(path.join(__dirname, 'dashboard-web')));
+app.use(express.static(path.join(APP_ROOT, 'dashboard-web')));
 
 app.get('/api/data', async (_req: Request, res: Response) => {
     try {
@@ -41,15 +43,15 @@ app.get('/api/data', async (_req: Request, res: Response) => {
 });
 
 app.get('/dashboard.png', (_req: Request, res: Response) => {
-    res.sendFile(path.join(__dirname, 'output', 'dashboard.png'));
+    res.sendFile(path.join(APP_ROOT, 'output', 'dashboard.png'));
 });
 
 app.get('/dashboard.bmp', (_req: Request, res: Response) => {
-    res.sendFile(path.join(__dirname, 'output', 'dashboard.bmp'));
+    res.sendFile(path.join(APP_ROOT, 'output', 'dashboard.bmp'));
 });
 
 app.get('/dashboard.previous.png', (_req: Request, res: Response) => {
-    res.sendFile(path.join(__dirname, 'output', 'dashboard.previous.png'));
+    res.sendFile(path.join(APP_ROOT, 'output', 'dashboard.previous.png'));
 });
 
 app.get('/api/changes', async (_req: Request, res: Response) => {
@@ -67,7 +69,7 @@ app.get('/api/image-region', async (req: Request, res: Response) => {
     try {
         const { x, y, w, h } = req.query;
 
-        const imagePath = path.join(__dirname, 'output', 'dashboard.png');
+        const imagePath = path.join(APP_ROOT, 'output', 'dashboard.png');
         
         const left = parseInt(x as string, 10) || 0;
         const top = parseInt(y as string, 10) || 0;

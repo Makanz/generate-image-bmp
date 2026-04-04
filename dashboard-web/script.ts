@@ -146,8 +146,8 @@ function updateTemperature(weather: WeatherData | null, indoor: IndoorData | nul
         for (let i = 0; i < 3; i++) {
             const el = document.getElementById(`forecast-${i}`);
             if (el) {
-                el.textContent = forecast[i] !== undefined
-                    ? Math.round(forecast[i].temp ?? forecast[i]) + '°'
+                el.textContent = forecast[i] !== undefined && forecast[i].temp !== undefined
+                    ? Math.round(forecast[i].temp) + '°'
                     : '--°';
             }
         }

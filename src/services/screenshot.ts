@@ -43,11 +43,12 @@ export class PlaywrightProvider implements ScreenshotProvider {
             headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
-        const page = await browser.newPage();
-        await page.setViewportSize({ width, height });
 
-        console.log(`[capture] Loading ${url}...`);
         try {
+            const page = await browser.newPage();
+            await page.setViewportSize({ width, height });
+
+            console.log(`[capture] Loading ${url}...`);
             const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: PAGE_LOAD_TIMEOUT_MS });
             if (response && response.status() >= 500) {
                 throw new Error(`Server returned ${response.status()}`);
@@ -56,16 +57,15 @@ export class PlaywrightProvider implements ScreenshotProvider {
                 () => (document.body as HTMLElement).dataset.loaded === 'true',
                 { timeout: DATA_LOAD_WAIT_MS }
             ).catch(() => console.warn('[capture] Data load timeout, proceeding with current content'));
-        } catch (err: unknown) {
-            handleApiError('[capture] Failed to load page', err);
-            await browser.close();
-            throw err;
-        }
 
-        console.log('[capture] Taking screenshot...');
-        const pngBuffer = await page.screenshot({ type: 'png', fullPage: false });
-        await browser.close();
-        return pngBuffer;
+            console.log('[capture] Taking screenshot...');
+            return await page.screenshot({ type: 'png', fullPage: false });
+        } catch (err: unknown) {
+            handleApiError('[capture] Failed to capture screenshot', err);
+            throw err;
+        } finally {
+            await browser.close();
+        }
     }
 }
 

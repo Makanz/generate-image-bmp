@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-This is a TypeScript application that generates a dashboard BMP/PNG image (800x480) with weather, calendar, and lunch data from n8n webhooks. The app runs an Express server with cron-based image generation and serves a Vite-based frontend.
+This is a TypeScript application that generates a dashboard 1-bit BMP image (800x480) with weather, calendar, and lunch data from n8n webhooks. The app runs an Express server with cron-based image generation and serves a Vite-based frontend.
 
 ## Project Structure
 
 ```
 generate-image-bmp/
-├── capture.ts          # Image generation (Playwright/Browserless → PNG → BMP)
+├── capture.ts          # Image generation (Playwright/Browserless → BMP)
 ├── server.ts           # Express server with API endpoints and cron scheduler
 ├── src/
 │   ├── image/
@@ -27,7 +27,7 @@ generate-image-bmp/
 │   ├── homey.test.js
 │   └── server.test.js
 ├── design/             # Design assets
-├── output/             # Generated images (dashboard.png, dashboard.bmp, dashboard.previous.png)
+├── output/             # Generated images (dashboard.bmp, dashboard.previous.bmp)
 ├── dist/               # Compiled TypeScript output
 ├── package.json
 ├── tsconfig.json
@@ -58,7 +58,7 @@ npm run preview      # Preview production build
 
 ### Image Generation
 ```bash
-npm run generate     # Run capture.ts to generate output/dashboard.png + output/dashboard.bmp
+npm run generate     # Run capture.ts to generate output/dashboard.bmp
 ```
 
 ### Testing
@@ -87,16 +87,40 @@ const WIDTH = 800;
 const HEIGHT = 480;
 
 interface GenerateImageOptions {
-    outputPng?: string;
     outputBmp?: string;
 }
 
-async function generateImage(options: GenerateImageOptions = {}): Promise<{ png: string; bmp: string }> {
-    const { outputPng = path.join(OUTPUT_DIR, 'dashboard.png') } = options;
+async function generateImage(options: GenerateImageOptions = {}): Promise<{ bmp: string }> {
+    const { outputBmp = path.join(OUTPUT_DIR, 'dashboard.bmp') } = options;
     
     try {
-        await sharp(buffer).toFile(outputPng);
-        return { png: outputPng, bmp: outputBmp };
+        const result = await sharp(buffer)
+            .greyscale()
+            .threshold(128)
+            .raw()
+            .toBuffer({ resolveWithObject: true });
+        
+        await writeBmp(result.info.width, result.info.height, result.data, outputBmp);
+        return { bmp: outputBmp };
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        console.error('Failed to generate image:', message);
+        throw err;
+    }
+}
+
+async function generateImage(options: GenerateImageOptions = {}): Promise<{ bmp: string }> {
+    const { outputBmp = path.join(OUTPUT_DIR, 'dashboard.bmp') } = options;
+    
+    try {
+        const result = await sharp(buffer)
+            .greyscale()
+            .threshold(128)
+            .raw()
+            .toBuffer({ resolveWithObject: true });
+        
+        await writeBmp(result.info.width, result.info.height, result.data, outputBmp);
+        return { bmp: outputBmp };
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         console.error('Failed to generate image:', message);
@@ -179,7 +203,7 @@ async function fetchSystemData() {
 ## Dependencies
 
 ### Production
-- `sharp` - Image processing (PNG output, greyscale conversion)
+- `sharp` - Image processing (greyscale conversion, thresholding)
 - `playwright` - Browser automation (screenshot capture)
 - `axios` - HTTP client (webhook requests)
 - `express` - Web server
@@ -196,9 +220,8 @@ async function fetchSystemData() {
 ## Output
 
 Generated images are saved to `output/`:
-- `output/dashboard.png` - Color PNG
-- `output/dashboard.previous.png` - Previous PNG (for change detection)
-- `output/dashboard.bmp` - 1-bit monochrome BMP for ESP32
+- `output/dashboard.bmp` - 1-bit monochrome BMP for e-paper display
+- `output/dashboard.previous.bmp` - Previous BMP (for change detection)
 
 Ensure the `output/` directory exists before generation (created automatically).
 

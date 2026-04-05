@@ -67,47 +67,78 @@ describe('capture.js - detectChanges', () => {
         }
     });
 
-    async function createTestPng(filePath, width, height, drawFn) {
-        const sharp = require('sharp');
+    async function createTestBmp(filePath, width, height, drawFn) {
         const pixels = Buffer.alloc(width * height, 0);
         drawFn(pixels, width, height);
-        const rawBuffer = await sharp(pixels, {
-            raw: { width, height, channels: 1 }
-        }).png().toBuffer();
-        await fs.writeFile(filePath, rawBuffer);
+        
+        const rowBytes = Math.ceil(width / 8);
+        const paddedRowBytes = Math.ceil(rowBytes / 4) * 4;
+        const pixelDataSize = paddedRowBytes * height;
+        const fileSize = 14 + 40 + 8 + pixelDataSize;
+        
+        const buf = Buffer.alloc(fileSize, 0);
+        buf.write('BM', 0);
+        buf.writeUInt32LE(fileSize, 2);
+        buf.writeUInt32LE(62, 10);
+        buf.writeUInt32LE(40, 14);
+        buf.writeInt32LE(width, 18);
+        buf.writeInt32LE(-height, 22);
+        buf.writeUInt16LE(1, 26);
+        buf.writeUInt16LE(1, 28);
+        buf.writeUInt32LE(0, 30);
+        buf.writeUInt32LE(pixelDataSize, 34);
+        buf.writeInt32LE(2835, 38);
+        buf.writeInt32LE(2835, 42);
+        buf.writeUInt32LE(2, 46);
+        buf.writeUInt32LE(2, 50);
+        buf.writeUInt32LE(0x00000000, 54);
+        buf.writeUInt32LE(0x00FFFFFF, 58);
+        
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const gray = pixels[y * width + x];
+                if (gray >= 128) {
+                    const byteIndex = Math.floor(x / 8);
+                    const bitIndex = 7 - (x % 8);
+                    buf[62 + y * paddedRowBytes + byteIndex] |= (1 << bitIndex);
+                }
+            }
+        }
+        
+        await fs.writeFile(filePath, buf);
     }
 
     test('returns empty array when no changes', async () => {
-        const currentPng = path.join(tempDir, 'current.png');
-        const previousPng = path.join(tempDir, 'previous.png');
+        const currentBmp = path.join(tempDir, 'current.bmp');
+        const previousBmp = path.join(tempDir, 'previous.bmp');
 
-        await createTestPng(currentPng, 800, 480, () => {});
-        await createTestPng(previousPng, 800, 480, () => {});
+        await createTestBmp(currentBmp, 800, 480, () => {});
+        await createTestBmp(previousBmp, 800, 480, () => {});
 
-        const changes = await detectChanges(currentPng, previousPng);
+        const changes = await detectChanges(currentBmp, previousBmp);
         expect(changes).toEqual([]);
     });
 
     test('returns change regions when images differ', async () => {
-        const currentPng = path.join(tempDir, 'current.png');
-        const previousPng = path.join(tempDir, 'previous.png');
+        const currentBmp = path.join(tempDir, 'current.bmp');
+        const previousBmp = path.join(tempDir, 'previous.bmp');
 
-        await createTestPng(currentPng, 800, 480, (pixels) => {
+        await createTestBmp(currentBmp, 800, 480, (pixels) => {
             pixels[100] = 255;
         });
-        await createTestPng(previousPng, 800, 480, (pixels) => {});
+        await createTestBmp(previousBmp, 800, 480, (pixels) => {});
 
-        const changes = await detectChanges(currentPng, previousPng);
+        const changes = await detectChanges(currentBmp, previousBmp);
         expect(changes.length).toBeGreaterThan(0);
     });
 
     test('handles missing previous file', async () => {
-        const currentPng = path.join(tempDir, 'current.png');
-        const previousPng = path.join(tempDir, 'previous.png');
+        const currentBmp = path.join(tempDir, 'current.bmp');
+        const previousBmp = path.join(tempDir, 'previous.bmp');
 
-        await createTestPng(currentPng, 800, 480, () => {});
+        await createTestBmp(currentBmp, 800, 480, () => {});
 
-        await expect(detectChanges(currentPng, previousPng)).rejects.toThrow();
+        await expect(detectChanges(currentBmp, previousBmp)).rejects.toThrow();
     });
 });
 

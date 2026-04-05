@@ -16,7 +16,7 @@ jest.mock('../src/services/data', () => ({
 }));
 
 jest.mock('../capture', () => ({
-    generateImage: jest.fn().mockResolvedValue({ png: 'output/dashboard.png', bmp: 'output/dashboard.bmp' }),
+    generateImage: jest.fn().mockResolvedValue({ bmp: 'output/dashboard.bmp' }),
     getChanges: jest.fn().mockResolvedValue({
         changes: [],
         currentChecksum: 'sha256:abc123',

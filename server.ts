@@ -90,16 +90,8 @@ app.get('/api/image-region', withErrorHandling('Error getting image region', asy
     }
 
     const regionBuffer = await extractRegion(imagePath, left, top, width, height);
-
-    const format = req.query.format || 'base64';
-    if (format === 'base64') {
-        res.json({
-            image: `data:image/png;base64,${regionBuffer.toString('base64')}`
-        });
-    } else {
-        res.set('Content-Type', 'image/png');
-        res.send(regionBuffer);
-    }
+    res.set('Content-Type', 'image/bmp');
+    res.send(regionBuffer);
 }));
 
 app.post('/api/refresh', withErrorHandling('Image generation failed', async (_req, res) => {

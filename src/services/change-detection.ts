@@ -11,13 +11,6 @@ export interface ChangeRegion {
     height: number;
 }
 
-interface MergedRegion {
-    x: number;
-    y: number;
-    maxX: number;
-    maxY: number;
-}
-
 export interface ChangesResult {
     changes: ChangeRegion[];
     currentChecksum: string | null;
@@ -88,63 +81,75 @@ export async function detectChanges(currentPath: string, previousPath: string): 
         }
     }
 
-    const mergedChanges = mergeRegions(changes, MERGE_DISTANCE);
+    return mergeRegions(changes, MERGE_DISTANCE);
+}
 
-    return mergedChanges;
+class UnionFind {
+    parent: number[];
+
+    constructor(n: number) {
+        this.parent = Array.from({ length: n }, (_, i) => i);
+    }
+
+    find(i: number): number {
+        while (this.parent[i] !== i) {
+            this.parent[i] = this.parent[this.parent[i]]; // Path halving
+            i = this.parent[i];
+        }
+        return i;
+    }
+
+    union(i: number, j: number): void {
+        const rootI = this.find(i);
+        const rootJ = this.find(j);
+        if (rootI !== rootJ) {
+            this.parent[rootI] = rootJ;
+        }
+    }
+}
+
+function regionsOverlap(r1: ChangeRegion, r2: ChangeRegion, distance: number): boolean {
+    const horizontalOverlap = r1.x - distance <= r2.x + r2.width + distance &&
+                              r1.x + r1.width + distance >= r2.x - distance;
+    const verticalOverlap = r1.y - distance <= r2.y + r2.height + distance &&
+                            r1.y + r1.height + distance >= r2.y - distance;
+    return horizontalOverlap && verticalOverlap;
 }
 
 export function mergeRegions(regions: ChangeRegion[], distance: number): ChangeRegion[] {
     if (regions.length <= 1) return regions;
 
-    const merged: MergedRegion[] = regions.map(r => ({
-        x: r.x,
-        y: r.y,
-        maxX: r.x + r.width - 1,
-        maxY: r.y + r.height - 1
-    }));
+    const uf = new UnionFind(regions.length);
 
-    const used = new Set<number>();
-    let changed = true;
-    while (changed) {
-        changed = false;
-
-        for (let i = 0; i < merged.length; i++) {
-            if (used.has(i)) continue;
-
-            for (let j = i + 1; j < merged.length; j++) {
-                if (used.has(j)) continue;
-
-                const r1 = merged[i];
-                const r2 = merged[j];
-
-                const horizontalOverlap = r1.x - distance <= r2.maxX + distance &&
-                                          r1.maxX + distance >= r2.x - distance;
-                const verticalOverlap = r1.y - distance <= r2.maxY + distance &&
-                                        r1.maxY + distance >= r2.y - distance;
-
-                if (horizontalOverlap && verticalOverlap) {
-                    r1.x = Math.min(r1.x, r2.x);
-                    r1.y = Math.min(r1.y, r2.y);
-                    r1.maxX = Math.max(r1.maxX, r2.maxX);
-                    r1.maxY = Math.max(r1.maxY, r2.maxY);
-                    used.add(j);
-                    changed = true;
-                }
+    for (let i = 0; i < regions.length; i++) {
+        for (let j = i + 1; j < regions.length; j++) {
+            if (regionsOverlap(regions[i], regions[j], distance)) {
+                uf.union(i, j);
             }
         }
     }
 
-    const result: ChangeRegion[] = [];
-    for (let i = 0; i < merged.length; i++) {
-        if (!used.has(i)) {
-            result.push({
-                x: merged[i].x,
-                y: merged[i].y,
-                width: merged[i].maxX - merged[i].x + 1,
-                height: merged[i].maxY - merged[i].y + 1
-            });
-        }
+    const groups = new Map<number, ChangeRegion[]>();
+    for (let i = 0; i < regions.length; i++) {
+        const root = uf.find(i);
+        if (!groups.has(root)) groups.set(root, []);
+        groups.get(root)!.push(regions[i]);
     }
+
+    const result: ChangeRegion[] = [];
+    for (const group of groups.values()) {
+        const minX = Math.min(...group.map(r => r.x));
+        const minY = Math.min(...group.map(r => r.y));
+        const maxX = Math.max(...group.map(r => r.x + r.width));
+        const maxY = Math.max(...group.map(r => r.y + r.height));
+        result.push({
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: maxY - minY
+        });
+    }
+
     return result;
 }
 

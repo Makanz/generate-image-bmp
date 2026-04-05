@@ -13,7 +13,7 @@ const DIB_HEADER_SIZE = 40;
 const COLOR_TABLE_ENTRY_SIZE = 4;
 const COLOR_TABLE_SIZE = COLOR_TABLE_ENTRIES * COLOR_TABLE_ENTRY_SIZE;
 
-async function writeBmp(width: number, height: number, pixelsGray: Buffer, outputPath: string): Promise<void> {
+function writeBmpToBuffer(width: number, height: number, pixelsGray: Buffer): Buffer {
     const rowBytes = Math.ceil(width / BITS_PER_DWORD) * 4;
     const pixelDataSize = rowBytes * height;
     const fileSize = FILE_HEADER_SIZE + DIB_HEADER_SIZE + COLOR_TABLE_SIZE + pixelDataSize;
@@ -57,7 +57,11 @@ async function writeBmp(width: number, height: number, pixelsGray: Buffer, outpu
         }
     }
 
-    await fs.writeFile(outputPath, buf);
+    return buf;
 }
 
-export { writeBmp };
+async function writeBmp(width: number, height: number, pixelsGray: Buffer, outputPath: string): Promise<void> {
+    await fs.writeFile(outputPath, writeBmpToBuffer(width, height, pixelsGray));
+}
+
+export { writeBmp, writeBmpToBuffer };

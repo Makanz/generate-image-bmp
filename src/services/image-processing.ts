@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import fs from 'fs/promises';
 import { WIDTH, HEIGHT } from '../utils/constants';
+import { writeBmpToBuffer } from '../image/bmp-writer';
 
 const FILE_HEADER_SIZE = 14;
 const DIB_HEADER_SIZE = 40;
@@ -93,11 +94,11 @@ export async function extractRegion(
     height: number
 ): Promise<Buffer> {
     const buffer = await fs.readFile(imagePath);
-    
+
     if (buffer[0] === 0x42 && buffer[1] === 0x4D) {
         const header = parseBmpHeader(buffer);
         const pixelData = extractBmpPixelData(buffer, header.width, header.height, header.pixelOffset, header.rowBytes);
-        
+
         const regionPixels = Buffer.alloc(width * height);
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
@@ -110,14 +111,15 @@ export async function extractRegion(
                 }
             }
         }
-        
-        return sharp(regionPixels, { raw: { width, height, channels: 1 } })
-            .png()
-            .toBuffer();
+
+        return writeBmpToBuffer(width, height, regionPixels);
     }
-    
-    return sharp(imagePath)
+
+    const regionPixels = await sharp(imagePath)
         .extract({ left, top, width, height })
-        .png()
+        .greyscale()
+        .threshold(128)
+        .raw()
         .toBuffer();
+    return writeBmpToBuffer(width, height, regionPixels);
 }

@@ -21,9 +21,9 @@ Dashboard-app som genererar BMP/PNG-bilder (800x480) med väder, kalender och lu
 │  ├── POST /api/refresh → Generera bild manuellt                │
 │  ├── GET /api/changes  → Pixel-förändringar mellan bilder      │
 │  ├── GET /api/image-region → Bildregion (PNG, base64/raw)      │
-│  ├── GET /dashboard.png → Senaste PNG                           │
 │  ├── GET /dashboard.bmp → Senaste BMP (1-bit monokrom)         │
-│  └── GET /dashboard.previous.png → Föregående PNG              │
+│  ├── GET /dashboard.previous.bmp → Föregående BMP              │
+│  └── GET /output/:filename → Filer från output-katalogen       │
 └─────────────────────────────────────────────────────────────────┘
                                │
                                ▼
@@ -44,7 +44,7 @@ npm install
 Kopiera `.env.example` till `.env` och konfigurera:
 
 ```env
-PORT=3001
+PORT=3000
 REFRESH_INTERVAL_MINUTES=15
 
 N8N_WEBHOOK_WEATHER=https://n8nflow.duckdns.org/webhook/<weather-id>
@@ -130,9 +130,8 @@ docker-compose up -d
 ### Bildgenerering
 
 Bilder sparas i `output/`:
-- `output/dashboard.png` - Färg-PNG
-- `output/dashboard.previous.png` - Föregående PNG (för diff)
 - `output/dashboard.bmp` - 1-bit monokrom BMP för ESP32
+- `output/dashboard.previous.bmp` - Föregående BMP (för diff)
 
 ### ESP32-integration
 
@@ -150,9 +149,9 @@ http://<server-ip>:3000/dashboard.bmp
 | `/api/refresh` | POST | Generera bild manuellt |
 | `/api/changes` | GET | Pixel-förändringar mellan nuvarande och föregående bild |
 | `/api/image-region` | GET | Extrahera bildregion som PNG (query: x, y, w, h, format) |
-| `/dashboard.png` | GET | Senaste PNG-bild |
 | `/dashboard.bmp` | GET | Senaste BMP-bild |
-| `/dashboard.previous.png` | GET | Föregående PNG-bild |
+| `/dashboard.previous.bmp` | GET | Föregående BMP-bild |
+| `/output/:filename` | GET | Filer från output-katalogen |
 
 ## Bildintervall
 

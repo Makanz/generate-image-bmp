@@ -4,6 +4,35 @@
 
 This is a TypeScript application that generates a dashboard 1-bit BMP image (800x480) with weather, calendar, and lunch data from n8n webhooks. The app runs an Express server with cron-based image generation and serves a Vite-based frontend.
 
+## Architecture
+
+The app generates an 800×480 dashboard image for an **ESP32 e-paper display**. The full data flow:
+
+```
+n8n webhooks (weather/calendar/lunch/indoor)
+        │
+        ▼
+server.ts (Express) ──► src/services/data.ts  (in-memory cache, per-source TTLs)
+        │                       └── src/services/homey.ts  (optional Homey direct API)
+        │
+        ├── GET /          ──► dashboard-web/ (static HTML/JS/CSS)
+        ├── GET /api/data  ──► aggregated JSON
+        └── POST /api/refresh
+                │
+                ▼
+          capture.ts
+          ├── screenshotWithPlaywright()   (default: local Chromium)
+          └── screenshotWithBrowserless() (if BROWSERLESS_URL is set)
+                │
+                ▼
+           sharp pipeline → output/dashboard.png  (color PNG)
+                         → output/dashboard.bmp   (1-bit monochrome, for ESP32)
+```
+
+`capture.ts` is both a standalone CLI (`pnpm run generate`) and an importable module.
+
+**Change detection**: `capture.ts` saves `dashboard.previous.png` before each capture. `getChanges()` flood-fills pixel diffs to find changed regions, then merges nearby rectangles (`MERGE_DISTANCE = 10px`). Exposed at `GET /api/changes`.
+
 ## Project Structure
 
 ```
@@ -41,30 +70,48 @@ generate-image-bmp/
 
 ### Installation
 ```bash
-npm install
+pnpm install
 ```
 
 ### Development
 ```bash
-npm run dev          # Start Vite dev server for dashboard-web
-npm run start        # Start Express server (TypeScript via ts-node)
+pnpm run dev         # Start Vite dev server for dashboard-web
+pnpm start           # Start Express server (TypeScript via ts-node)
 ```
 
 ### Build
 ```bash
-npm run build        # Compile TypeScript + build dashboard-web for production
-npm run preview      # Preview production build
+pnpm run build       # Compile TypeScript + build dashboard-web for production
+pnpm run preview     # Preview production build
 ```
 
 ### Image Generation
 ```bash
-npm run generate     # Run capture.ts to generate output/dashboard.bmp
+pnpm run generate    # Run capture.ts to generate output/dashboard.bmp
 ```
 
 ### Testing
 ```bash
-npm test             # Run Jest test suite
+pnpm test            # Run Jest test suite
 ```
+
+## Key Conventions
+
+**Module system**: TypeScript source uses ES module syntax (`import`/`export`), compiled to CommonJS. The `"type": "commonjs"` field is set in `package.json`.
+
+**Swedish language**: All UI labels, server log messages, and HTML are in Swedish (e.g. "Temperatur", "Väder", `lang="sv"` in HTML).
+
+**Page-ready signal**: `capture.ts` waits for `document.body.dataset.loaded === 'true'` before taking a screenshot. `script.js` sets this flag (`markDataLoaded()`) after data is rendered. The frontend falls back to mock data if `/api/data` fails, so the flag is always set.
+
+**Data caching** (`src/services/data.ts`): Each source (weather, calendar, lunch, indoor) has its own TTL. On fetch failure, the cache timestamp is set to `now - CACHE_TTL + ERROR_RETRY_MS` so retries happen after `ERROR_RETRY_MS` rather than waiting for the full TTL.
+
+**Indoor temperature**: Fetched from Homey direct API (`HOMEY_IP` + `HOMEY_TOKEN`) or falls back to the `N8N_WEBHOOK_INDOOR` webhook.
+
+**Weather retry on startup**: `server.ts` retries weather up to 3 times (3s apart) before generating the initial image, to avoid blank weather data on a cold start.
+
+**Output files**: Both `dashboard.png` and `dashboard.bmp` are always written together in `generateImage()`. The `output/` directory is created automatically.
+
+**BMP format**: 1-bit monochrome (BITMAPINFOHEADER, top-down with negative height, 2-color table: black `0x000000` / white `0xFFFFFF`, row padded to 4-byte boundary).
 
 ## Code Style Guidelines
 
@@ -88,25 +135,6 @@ const HEIGHT = 480;
 
 interface GenerateImageOptions {
     outputBmp?: string;
-}
-
-async function generateImage(options: GenerateImageOptions = {}): Promise<{ bmp: string }> {
-    const { outputBmp = path.join(OUTPUT_DIR, 'dashboard.bmp') } = options;
-    
-    try {
-        const result = await sharp(buffer)
-            .greyscale()
-            .threshold(128)
-            .raw()
-            .toBuffer({ resolveWithObject: true });
-        
-        await writeBmp(result.info.width, result.info.height, result.data, outputBmp);
-        return { bmp: outputBmp };
-    } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('Failed to generate image:', message);
-        throw err;
-    }
 }
 
 async function generateImage(options: GenerateImageOptions = {}): Promise<{ bmp: string }> {
@@ -227,14 +255,16 @@ Ensure the `output/` directory exists before generation (created automatically).
 
 ## Environment Variables
 
+Copy `.env.example` to `.env`. Key variables:
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | `3001` |
 | `REFRESH_INTERVAL_MINUTES` | Cron interval for image regeneration | `15` |
-| `N8N_WEBHOOK_WEATHER` | n8n webhook for weather data | - |
-| `N8N_WEBHOOK_CALENDAR` | n8n webhook for calendar data | - |
-| `N8N_WEBHOOK_LUNCH` | n8n webhook for lunch data | - |
-| `N8N_WEBHOOK_INDOOR` | n8n webhook for indoor temperature | - |
+| `N8N_WEBHOOK_WEATHER` | n8n webhook returning Open-Meteo-style JSON | - |
+| `N8N_WEBHOOK_CALENDAR` | n8n webhook returning `{ events: [{date, summary}] }` | - |
+| `N8N_WEBHOOK_LUNCH` | n8n webhook returning school lunch array | - |
+| `N8N_WEBHOOK_INDOOR` | n8n webhook for indoor temperature (fallback) | - |
 | `HOMEY_IP` | Homey device IP | - |
 | `HOMEY_TOKEN` | Homey API token | - |
 | `HOMEY_USERNAME` | Homey username | - |
@@ -242,6 +272,15 @@ Ensure the `output/` directory exists before generation (created automatically).
 | `BROWSERLESS_URL` | Browserless REST API URL (optional) | - |
 | `BROWSERLESS_TOKEN` | Browserless auth token | - |
 | `CAPTURE_URL` | Direct URL for screenshot capture | `http://localhost:5173/` |
+
+## Docker
+
+```bash
+cp .env.example .env   # fill in webhook URLs
+docker-compose up -d   # builds and starts the container
+```
+
+The ESP32 fetches the image via `http://<server-ip>:3001/dashboard.bmp`.
 
 ## UI Language
 

@@ -16,12 +16,12 @@ async function writeBmpToTemp(width, height, pixels) {
 }
 
 describe('writeBmp', () => {
-    test('skriver BM-signatur i de två första bytes', async () => {
+    test('Writes BM signature in the first two bytes', async () => {
         const buf = await writeBmpToTemp(8, 1, Buffer.alloc(8, 255));
         expect(buf.toString('ascii', 0, 2)).toBe('BM');
     });
 
-    test('filstorlek i header matchar faktisk buffert', async () => {
+    test('Header file size matches actual buffer', async () => {
         const width = 8;
         const height = 2;
         const buf = await writeBmpToTemp(width, height, Buffer.alloc(width * height, 255));
@@ -29,7 +29,7 @@ describe('writeBmp', () => {
         expect(reportedSize).toBe(buf.length);
     });
 
-    test('pixel-offset pekar på rätt plats', async () => {
+    test('Pixel offset points to correct location', async () => {
         const buf = await writeBmpToTemp(8, 1, Buffer.alloc(8, 255));
         const pixelOffset = buf.readUInt32LE(10);
         expect(pixelOffset).toBe(FILE_HEADER_SIZE + DIB_HEADER_SIZE + COLOR_TABLE_SIZE);

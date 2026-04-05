@@ -149,8 +149,8 @@ export function mergeRegions(regions: ChangeRegion[], distance: number): ChangeR
 }
 
 export async function getChanges(outputDir: string): Promise<ChangesResult> {
-    const currentPath = path.join(outputDir, 'dashboard.png');
-    const previousPath = path.join(outputDir, 'dashboard.previous.png');
+    const currentPath = path.join(outputDir, 'dashboard.bmp');
+    const previousPath = path.join(outputDir, 'dashboard.previous.bmp');
 
     const currentExists = await fileExists(currentPath);
     const previousExists = await fileExists(previousPath);

@@ -16,7 +16,7 @@ const APP_ROOT = getAppRoot();
 
 const WEATHER_ENSURE_RETRIES = 3;
 const WEATHER_ENSURE_DELAY_MS = 3000;
-const ALLOWED_OUTPUT_FILES = ['dashboard.png', 'dashboard.bmp', 'dashboard.previous.png'];
+const ALLOWED_OUTPUT_FILES = ['dashboard.bmp', 'dashboard.previous.bmp'];
 
 async function sleep(ms: number): Promise<void> {
     return new Promise(r => setTimeout(r, ms));
@@ -61,16 +61,12 @@ app.get('/output/:filename', (_req: Request, res: Response) => {
     res.sendFile(path.join(APP_ROOT, 'output', filename));
 });
 
-app.get('/dashboard.png', (_req: Request, res: Response) => {
-    res.sendFile(path.join(APP_ROOT, 'output', 'dashboard.png'));
-});
-
 app.get('/dashboard.bmp', (_req: Request, res: Response) => {
     res.sendFile(path.join(APP_ROOT, 'output', 'dashboard.bmp'));
 });
 
-app.get('/dashboard.previous.png', (_req: Request, res: Response) => {
-    res.sendFile(path.join(APP_ROOT, 'output', 'dashboard.previous.png'));
+app.get('/dashboard.previous.bmp', (_req: Request, res: Response) => {
+    res.sendFile(path.join(APP_ROOT, 'output', 'dashboard.previous.bmp'));
 });
 
 app.get('/api/changes', withErrorHandling('Error getting changes', async (_req, res) => {
@@ -81,7 +77,7 @@ app.get('/api/changes', withErrorHandling('Error getting changes', async (_req, 
 app.get('/api/image-region', withErrorHandling('Error getting image region', async (req, res) => {
     const { x, y, w, h } = req.query;
 
-    const imagePath = path.join(APP_ROOT, 'output', 'dashboard.png');
+    const imagePath = path.join(APP_ROOT, 'output', 'dashboard.bmp');
 
     const left = parseInt(x as string, 10) || 0;
     const top = parseInt(y as string, 10) || 0;

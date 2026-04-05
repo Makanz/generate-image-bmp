@@ -13,23 +13,21 @@ const PORT = process.env.PORT || 5173;
 const BASE_URL = process.env.CAPTURE_URL || `http://localhost:${PORT}`;
 
 interface GenerateImageOptions {
-    outputPng?: string;
     outputBmp?: string;
 }
 
-async function generateImage(options: GenerateImageOptions = {}): Promise<{ png: string; bmp: string }> {
+async function generateImage(options: GenerateImageOptions = {}): Promise<{ bmp: string }> {
     const {
-        outputPng = path.join(OUTPUT_DIR, 'dashboard.png'),
         outputBmp = path.join(OUTPUT_DIR, 'dashboard.bmp')
     } = options;
 
     await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
-    const previousPng = path.join(OUTPUT_DIR, 'dashboard.previous.png');
-    const currentPngExists = await fileExists(outputPng);
-    if (currentPngExists) {
-        await fs.copyFile(outputPng, previousPng);
-        console.log(`[capture] Previous image saved: ${previousPng}`);
+    const previousBmp = path.join(OUTPUT_DIR, 'dashboard.previous.bmp');
+    const currentBmpExists = await fileExists(outputBmp);
+    if (currentBmpExists) {
+        await fs.copyFile(outputBmp, previousBmp);
+        console.log(`[capture] Previous image saved: ${previousBmp}`);
     }
 
     const url = process.env.CAPTURE_URL || `${BASE_URL}/`;
@@ -38,23 +36,19 @@ async function generateImage(options: GenerateImageOptions = {}): Promise<{ png:
     const provider = createScreenshotProvider();
     const pngBuffer = await provider.capture(url, WIDTH, HEIGHT);
 
-    console.log(`[capture] PNG captured (${pngBuffer.length} bytes)`);
+    console.log(`[capture] Screenshot captured (${pngBuffer.length} bytes)`);
 
-    const basePipeline = sharp(pngBuffer);
+    const greyscaleResult = await sharp(pngBuffer)
+        .greyscale()
+        .threshold(GREYSCALE_THRESHOLD)
+        .raw()
+        .toBuffer({ resolveWithObject: true });
 
-    const [{ data: greyscaleData, info: greyscaleInfo }] = await Promise.all([
-        basePipeline.clone().greyscale().threshold(GREYSCALE_THRESHOLD).raw().toBuffer({ resolveWithObject: true })
-    ]);
+    await writeBmp(greyscaleResult.info.width, greyscaleResult.info.height, greyscaleResult.data, outputBmp);
 
-    await Promise.all([
-        basePipeline.clone().toFile(outputPng),
-        writeBmp(greyscaleInfo.width, greyscaleInfo.height, greyscaleData, outputBmp)
-    ]);
-
-    console.log(`[capture] PNG saved: ${outputPng}`);
     console.log(`[capture] BMP saved: ${outputBmp}`);
 
-    return { png: outputPng, bmp: outputBmp };
+    return { bmp: outputBmp };
 }
 
 async function getChanges(): Promise<ChangesResult> {
@@ -80,7 +74,7 @@ async function fileExists(filePath: string): Promise<boolean> {
 async function main(): Promise<void> {
     console.log('Generating dashboard image...');
     await generateImage();
-    console.log('Done: output/dashboard.png, output/dashboard.bmp');
+    console.log('Done: output/dashboard.bmp');
 }
 
 if (require.main === module) {

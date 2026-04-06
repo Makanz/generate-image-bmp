@@ -1,7 +1,7 @@
 const request = require('supertest');
-const path = require('path');
-const fs = require('fs').promises;
-const os = require('os');
+
+jest.mock('dotenv/config', () => ({}));
+jest.mock('node-cron', () => ({ schedule: jest.fn() }));
 
 jest.mock('../src/services/data', () => ({
     fetchAllData: jest.fn().mockResolvedValue({
@@ -25,11 +25,15 @@ jest.mock('../capture', () => ({
     })
 }));
 
-describe('server.js - API endpoints', () => {
+jest.mock('../src/services/image-processing', () => ({
+    extractRegion: jest.fn().mockResolvedValue(Buffer.from('BM'))
+}));
+
+describe('server - API endpoints', () => {
     let app;
     let server;
 
-    beforeAll(async () => {
+    beforeAll(() => {
         process.env.PORT = '0';
         delete process.env.REFRESH_INTERVAL_MINUTES;
         delete process.env.N8N_WEBHOOK_WEATHER;
@@ -37,98 +41,115 @@ describe('server.js - API endpoints', () => {
         delete process.env.N8N_WEBHOOK_LUNCH;
         delete process.env.N8N_WEBHOOK_INDOOR;
 
-        const express = require('express');
-        const { fetchAllData, fetchAllDataFresh, fetchWeatherFresh } = require('../src/services/data');
-        const { generateImage, getChanges } = require('../capture');
+        jest.useFakeTimers();
+        const mod = require('../server');
+        app = mod.app;
+        server = mod.server;
+    });
 
-        app = express();
-        app.use(express.static(path.join(__dirname, '..', 'dashboard-web')));
-
-        app.get('/api/data', async (req, res) => {
-            try {
-                const data = await fetchAllData();
-                res.json(data);
-            } catch (err) {
-                res.status(500).json({ error: 'Failed to fetch data' });
-            }
-        });
-
-        app.get('/api/changes', async (req, res) => {
-            try {
-                const changes = await getChanges();
-                res.json(changes);
-            } catch (err) {
-                res.status(500).json({ error: 'Failed to get changes' });
-            }
-        });
-
-        app.post('/api/refresh', async (req, res) => {
-            try {
-                await fetchAllDataFresh();
-                await generateImage();
-                res.json({ ok: true, timestamp: new Date().toISOString() });
-            } catch (err) {
-                res.status(500).json({ ok: false, error: err.message });
-            }
-        });
+    afterAll((done) => {
+        jest.useRealTimers();
+        server.close(done);
     });
 
     describe('GET /api/data', () => {
         test('returns JSON with all data sources', async () => {
-            const response = await request(app).get('/api/data');
-            expect(response.status).toBe(200);
-            expect(response.body).toHaveProperty('weather');
-            expect(response.body).toHaveProperty('calendar');
-            expect(response.body).toHaveProperty('lunch');
-            expect(response.body).toHaveProperty('indoor');
-            expect(response.body).toHaveProperty('timestamp');
+            const res = await request(app).get('/api/data');
+            expect(res.status).toBe(200);
+            expect(res.body).toHaveProperty('weather');
+            expect(res.body).toHaveProperty('calendar');
+            expect(res.body).toHaveProperty('lunch');
+            expect(res.body).toHaveProperty('indoor');
+            expect(res.body).toHaveProperty('timestamp');
         });
 
-        test('returns 500 on error', async () => {
+        test('returns 500 with generic error message on failure', async () => {
             const { fetchAllData } = require('../src/services/data');
             fetchAllData.mockRejectedValueOnce(new Error('API error'));
 
-            const response = await request(app).get('/api/data');
-            expect(response.status).toBe(500);
-            expect(response.body).toHaveProperty('error');
+            const res = await request(app).get('/api/data');
+            expect(res.status).toBe(500);
+            expect(res.body).toHaveProperty('error', 'Internal server error');
         });
     });
 
     describe('GET /api/changes', () => {
         test('returns changes with checksums', async () => {
-            const response = await request(app).get('/api/changes');
-            expect(response.status).toBe(200);
-            expect(response.body).toHaveProperty('changes');
-            expect(response.body).toHaveProperty('currentChecksum');
-            expect(response.body).toHaveProperty('previousChecksum');
-            expect(response.body).toHaveProperty('timestamp');
+            const res = await request(app).get('/api/changes');
+            expect(res.status).toBe(200);
+            expect(res.body).toHaveProperty('changes');
+            expect(res.body).toHaveProperty('currentChecksum');
+            expect(res.body).toHaveProperty('previousChecksum');
+            expect(res.body).toHaveProperty('timestamp');
         });
 
-        test('returns 500 on error', async () => {
+        test('returns 500 with generic error message on failure', async () => {
             const { getChanges } = require('../capture');
             getChanges.mockRejectedValueOnce(new Error('File error'));
 
-            const response = await request(app).get('/api/changes');
-            expect(response.status).toBe(500);
-            expect(response.body).toHaveProperty('error');
+            const res = await request(app).get('/api/changes');
+            expect(res.status).toBe(500);
+            expect(res.body).toHaveProperty('error', 'Internal server error');
         });
     });
 
     describe('POST /api/refresh', () => {
         test('returns ok true on success', async () => {
-            const response = await request(app).post('/api/refresh');
-            expect(response.status).toBe(200);
-            expect(response.body.ok).toBe(true);
-            expect(response.body).toHaveProperty('timestamp');
+            const res = await request(app).post('/api/refresh');
+            expect(res.status).toBe(200);
+            expect(res.body.ok).toBe(true);
+            expect(res.body).toHaveProperty('timestamp');
         });
 
-        test('returns error on failure', async () => {
+        test('withErrorHandling returns 500 with generic message on failure', async () => {
             const { generateImage } = require('../capture');
             generateImage.mockRejectedValueOnce(new Error('Generation failed'));
 
-            const response = await request(app).post('/api/refresh');
-            expect(response.status).toBe(500);
-            expect(response.body.ok).toBe(false);
+            const res = await request(app).post('/api/refresh');
+            expect(res.status).toBe(500);
+            expect(res.body).toHaveProperty('error', 'Internal server error');
+            expect(res.body).not.toHaveProperty('ok');
+        });
+    });
+
+    describe('GET /output/:filename', () => {
+        test('blocks filenames not in the allowlist with 404', async () => {
+            const res = await request(app).get('/output/malicious.txt');
+            expect(res.status).toBe(404);
+            expect(res.body).toHaveProperty('error', 'File not found');
+        });
+
+        test('blocks filenames with path separators', async () => {
+            const res = await request(app).get('/output/..%2Fserver.ts');
+            expect(res.status).toBe(404);
+        });
+
+        test('allows dashboard.bmp (allowlisted)', async () => {
+            // File may not exist in test env, so 404 from sendFile is acceptable — not a 403/allowlist block
+            const res = await request(app).get('/output/dashboard.bmp');
+            expect(res.status).not.toBe(403);
+            expect(res.body.error).not.toBe('File not found');
+        });
+    });
+
+    describe('GET /api/image-region', () => {
+        test('returns 400 when w or h is missing', async () => {
+            const res = await request(app).get('/api/image-region?x=0&y=0&w=100');
+            expect(res.status).toBe(400);
+            expect(res.body).toHaveProperty('error', 'Missing or invalid w, h parameters');
+        });
+
+        test('returns 400 when both w and h are missing', async () => {
+            const res = await request(app).get('/api/image-region');
+            expect(res.status).toBe(400);
+            expect(res.body).toHaveProperty('error', 'Missing or invalid w, h parameters');
+        });
+
+        test('returns BMP buffer with valid params', async () => {
+            const res = await request(app).get('/api/image-region?x=0&y=0&w=100&h=50');
+            expect(res.status).toBe(200);
+            expect(res.headers['content-type']).toMatch(/image\/bmp/);
         });
     });
 });
+

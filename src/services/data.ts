@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { fetchIndoorTemperatures } from './homey';
-import { HTTP_TIMEOUT_MS } from '../utils/constants';
+import { HTTP_TIMEOUT_MS, WEATHER_FORECAST_START_INDEX, WEATHER_FORECAST_COUNT } from '../utils/constants';
 import { handleApiError } from '../utils/errors';
 
 const CACHE_TTL_MS: Record<string, number> = {
@@ -120,12 +120,13 @@ function normalizeWeather(raw: WeatherRaw | WeatherRaw[] | null): WeatherData | 
     const maxTemps = daily.temperature_2m_max || [];
     const minTemps = daily.temperature_2m_min || [];
 
-    const forecast = maxTemps.slice(1, 4).map((max, i) => ({
-        temp: (max + (minTemps[i + 1] ?? max)) / 2,
+    const end = WEATHER_FORECAST_START_INDEX + WEATHER_FORECAST_COUNT;
+    const forecast = maxTemps.slice(WEATHER_FORECAST_START_INDEX, end).map((max, i) => ({
+        temp: (max + (minTemps[i + WEATHER_FORECAST_START_INDEX] ?? max)) / 2,
         max,
-        min: minTemps[i + 1] ?? null,
-        precipitation_probability: (daily.precipitation_probability_max || [])[i + 1] ?? null,
-        weather_code: (daily.weather_code || [])[i + 1] ?? null
+        min: minTemps[i + WEATHER_FORECAST_START_INDEX] ?? null,
+        precipitation_probability: (daily.precipitation_probability_max || [])[i + WEATHER_FORECAST_START_INDEX] ?? null,
+        weather_code: (daily.weather_code || [])[i + WEATHER_FORECAST_START_INDEX] ?? null
     }));
 
     return {

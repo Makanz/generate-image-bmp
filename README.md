@@ -1,34 +1,34 @@
 # GenerateImageBmp
 
-Dashboard-app som genererar BMP-bilder (800x480) med väder, kalender och lunchdata från n8n-webhooks.
+Dashboard app that generates BMP images (800x480) with weather, calendar, and lunch data from n8n webhooks.
 
-## Arkitektur
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  n8n (https://n8nflow.duckdns.org)                              │
-│  ├── Webhook: /webhook/<weather-id>  →  SMHI väderdata          │
+│  ├── Webhook: /webhook/<weather-id>  →  SMHI weather data       │
 │  ├── Webhook: /webhook/<calendar-id> →  Google Calendar        │
-│  ├── Webhook: /webhook/6e6ed191-...  →  Skolmatsedel (foodit)  │
-│  └── Webhook: /webhook/<indoor-id>   →  Inomhustemperatur       │
+│  ├── Webhook: /webhook/6e6ed191-...  →  School lunch (foodit)  │
+│  └── Webhook: /webhook/<indoor-id>   →  Indoor temperature      │
 └─────────────────────────────────────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  Dashboard App (TypeScript/Express, Docker)                     │
 │  ├── GET /              → Dashboard HTML                         │
-│  ├── GET /api/data     → Aggregerad data från n8n              │
-│  ├── POST /api/refresh → Generera bild manuellt                │
-│  ├── GET /api/changes  → Pixel-förändringar mellan bilder      │
-│  ├── GET /dashboard.bmp → Senaste BMP (1-bit monokrom)         │
-│  ├── GET /dashboard.previous.bmp → Föregående BMP              │
-│  └── GET /output/:filename → Filer från output-katalogen       │
+│  ├── GET /api/data     → Aggregated data from n8n              │
+│  ├── POST /api/refresh → Generate image manually               │
+│  ├── GET /api/changes  → Pixel changes between images          │
+│  ├── GET /dashboard.bmp → Latest BMP (1-bit monochrome)        │
+│  ├── GET /dashboard.previous.bmp → Previous BMP                │
+│  └── GET /output/:filename → Files from output directory       │
 └─────────────────────────────────────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  ESP32 med e-paper display                                      │
-│  Hämtar /dashboard.bmp från servern                            │
+│  ESP32 with e-paper display                                     │
+│  Fetches /dashboard.bmp from the server                        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -38,9 +38,9 @@ Dashboard-app som genererar BMP-bilder (800x480) med väder, kalender och lunchd
 npm install
 ```
 
-## Konfiguration
+## Configuration
 
-Kopiera `.env.example` till `.env` och konfigurera:
+Copy `.env.example` to `.env` and configure:
 
 ```env
 PORT=3000
@@ -59,112 +59,112 @@ HOMEY_PASSWORD=
 BROWSERLESS_TOKEN=
 ```
 
-### n8n-webhooks
+### n8n Webhooks
 
-#### Lunch (klar)
-Använd befintlig webhook: `/webhook/6e6ed191-a7c2-44ba-8193-1460fffd9ccb`
+#### Lunch (done)
+Use existing webhook: `/webhook/6e6ed191-a7c2-44ba-8193-1460fffd9ccb`
 
-#### Väder (SMHI)
-Skapa ett n8n-workflow med:
-1. **HTTP Request** → Hämta från SMHI API (exempel: `https://opendata-download-metfcst.smhi.se/api/category/pmp3g/version/2/geotype/point/lon/18.0686/lat/59.3293/data.json`)
-2. **Webhook** → Exponera som `GET`-endpoint
-3. **Transformera** svaret till formatet:
+#### Weather (SMHI)
+Create an n8n workflow with:
+1. **HTTP Request** → Fetch from SMHI API (example: `https://opendata-download-metfcst.smhi.se/api/category/pmp3g/version/2/geotype/point/lon/18.0686/lat/59.3293/data.json`)
+2. **Webhook** → Expose as `GET` endpoint
+3. **Transform** the response to the format:
    ```json
    {
      "temperature": 18.5,
-     "description": "Delvis molnigt",
+     "description": "Partly cloudy",
      "location": "Stockholm",
      "precipitation": 20
    }
    ```
 
-#### Kalender (Google Calendar)
-Skapa ett n8n-workflow med:
-1. **Google Calendar Trigger** → Hämta händelser för idag + 7 dagar
-2. **Webhook** → Exponera som `GET`-endpoint
-3. **Transformera** svaret till formatet:
+#### Calendar (Google Calendar)
+Create an n8n workflow with:
+1. **Google Calendar Trigger** → Fetch events for today + 7 days
+2. **Webhook** → Expose as `GET` endpoint
+3. **Transform** the response to the format:
    ```json
    {
      "events": [
-       { "date": "2024-01-15", "summary": "Möte" },
-       { "date": "2024-01-16", "summary": "Handla" }
+       { "date": "2024-01-15", "summary": "Meeting" },
+       { "date": "2024-01-16", "summary": "Groceries" }
      ]
    }
    ```
 
-## Lokal utveckling
+## Local Development
 
 ```bash
-npm run dev          # Starta Vite dev-server för dashboard-web
+npm run dev          # Start Vite dev server for dashboard-web
 ```
 
 ```bash
-npm run start        # Starta Express-server (TypeScript)
+npm run start        # Start Express server (TypeScript)
 ```
 
 ```bash
-npm run generate     # Generera bild manuellt (fristående, kräver ingen server)
+npm run generate     # Generate image manually (standalone, no server required)
 ```
 
 ```bash
-npm run build        # Bygg TypeScript + production frontend
-npm run preview      # Förhandsgranska production build
+npm run build        # Build TypeScript + production frontend
+npm run preview      # Preview production build
 ```
 
 ```bash
-npm test             # Kör tester med Jest
+npm test             # Run tests with Jest
 ```
 
 ## Docker
 
-### Bygga och starta
+### Build and Start
 
 ```bash
 cp .env.example .env
-# Redigera .env med dina webhook-URL:er
+# Edit .env with your webhook URLs
 
 docker-compose up -d
 ```
 
-### Bildgenerering
+### Image Generation
 
-Bilder sparas i `output/`:
-- `output/dashboard.bmp` - 1-bit monokrom BMP för ESP32
-- `output/dashboard.previous.bmp` - Föregående BMP (för diff)
+Images are saved to `output/`:
+- `output/dashboard.bmp` - 1-bit monochrome BMP for ESP32
+- `output/dashboard.previous.bmp` - Previous BMP (for diff)
 
-### ESP32-integration
+### ESP32 Integration
 
-ESP32 kan hämta bilden via:
+ESP32 can fetch the image via:
 ```
 http://<server-ip>:3000/dashboard.bmp
 ```
 
 ## API
 
-| Endpoint | Metod | Beskrivning |
-|----------|-------|-------------|
+| Endpoint | Method | Description |
+|----------|--------|-------------|
 | `/` | GET | Dashboard HTML |
-| `/api/data` | GET | Aggregerad data från n8n |
-| `/api/refresh` | POST | Generera bild manuellt |
-| `/api/changes` | GET | Pixel-förändringar mellan nuvarande och föregående bild |
-| `/dashboard.bmp` | GET | Senaste BMP-bild |
-| `/dashboard.previous.bmp` | GET | Föregående BMP-bild |
-| `/output/:filename` | GET | Filer från output-katalogen |
+| `/api/data` | GET | Aggregated data from n8n |
+| `/api/refresh` | POST | Generate image manually |
+| `/api/changes` | GET | Pixel changes between current and previous image |
+| `/dashboard.bmp` | GET | Latest BMP image |
+| `/dashboard.previous.bmp` | GET | Previous BMP image |
+| `/output/:filename` | GET | Files from output directory |
 
-## Bildintervall
+## Image Interval
 
-Standard är 15 minuter. Ändra med `REFRESH_INTERVAL_MINUTES` i `.env`.
+Default is 15 minutes. Change with `REFRESH_INTERVAL_MINUTES` in `.env`.
 
-## Screenshot-alternativ
+## Screenshot Options
 
-Bildgenerering använder Playwright (lokal Chromium) som standard. Alternativt kan [Browserless](https://www.browserless.io/) användas:
+Image generation uses Playwright (local Chromium) by default. Alternatively, [Browserless](https://www.browserless.io/) can be used:
 
 ```env
 BROWSERLESS_URL=http://<host>:3000
 BROWSERLESS_TOKEN=<token>
 ```
 
-Eller ange en färdig dashboard-URL direkt:
+Or provide a ready dashboard URL directly:
 
 ```env
 CAPTURE_URL=http://<host>:3001

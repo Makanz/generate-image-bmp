@@ -296,4 +296,160 @@ describe('data.js', () => {
             expect(result2.weather).not.toBeNull();
         });
     });
+
+    describe('cache persistence', () => {
+        function setupMocksAndFs(axiosGetImpl, fsOps) {
+            jest.doMock('axios', () => ({
+                get: jest.fn(axiosGetImpl)
+            }));
+            jest.doMock('../src/services/homey', () => ({
+                fetchIndoorTemperatures: jest.fn().mockResolvedValue(null)
+            }));
+            const mockFs = {
+                mkdir: jest.fn().mockResolvedValue(undefined),
+                writeFile: jest.fn().mockResolvedValue(undefined),
+                readFile: jest.fn().mockResolvedValue(JSON.stringify(fsOps))
+            };
+            if (fsOps === 'missing') {
+                mockFs.readFile.mockRejectedValue(new Error('ENOENT'));
+            } else if (fsOps === 'corrupt') {
+                mockFs.readFile.mockResolvedValue('not valid json{{{');
+            }
+            jest.doMock('fs/promises', () => mockFs);
+            return mockFs;
+        }
+
+        test('persistCache writes cache.json after successful fetch', async () => {
+            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            const mockWeatherData = {
+                current: { temperature_2m: 20 },
+                daily: {
+                    temperature_2m_max: [20, 22, 23, 24],
+                    temperature_2m_min: [10, 11, 12, 13],
+                    precipitation_probability_max: [0, 10, 20, 30],
+                    weather_code: [0, 1, 2, 3]
+                }
+            };
+            const mockFs = setupMocksAndFs(() => Promise.resolve({ data: [mockWeatherData] }), {});
+            const { fetchAllData, persistCache } = require('../src/services/data');
+
+            await fetchAllData();
+            await persistCache();
+
+            expect(mockFs.writeFile).toHaveBeenCalled();
+            const writtenPath = mockFs.writeFile.mock.calls[0][0];
+            expect(writtenPath).toMatch(/cache\.json$/);
+            const writtenContent = JSON.parse(mockFs.writeFile.mock.calls[0][1]);
+            expect(writtenContent.weather.data).not.toBeNull();
+            expect(writtenContent.weather.data.outdoor.current).toBe(20);
+        });
+
+        test('restoreCache loads valid entries from disk', async () => {
+            const freshTimestamp = Date.now() - 60000;
+            const cacheData = {
+                weather: {
+                    data: { outdoor: { current: 25, forecast: [] }, current_weather_code: 0, wind_speed: 5, humidity: 50 },
+                    timestamp: freshTimestamp
+                },
+                calendar: { data: null, timestamp: 0 },
+                lunch: { data: null, timestamp: 0 },
+                indoor: { data: null, timestamp: 0 }
+            };
+            setupMocksAndFs(() => Promise.reject(new Error('should not be called')), cacheData);
+            const { restoreCache, fetchAllData } = require('../src/services/data');
+
+            await restoreCache();
+            const result = await fetchAllData();
+
+            expect(result.weather).not.toBeNull();
+            expect(result.weather.outdoor.current).toBe(25);
+        });
+
+        test('restoreCache skips expired entries', async () => {
+            const staleTimestamp = Date.now() - 24 * 60 * 60 * 1000;
+            const cacheData = {
+                weather: {
+                    data: { outdoor: { current: 99, forecast: [] }, current_weather_code: 0, wind_speed: 0, humidity: 0 },
+                    timestamp: staleTimestamp
+                },
+                calendar: { data: null, timestamp: 0 },
+                lunch: { data: null, timestamp: 0 },
+                indoor: { data: null, timestamp: 0 }
+            };
+            setupMocksAndFs(() => Promise.reject(new Error('should not be called')), cacheData);
+            const { restoreCache, fetchAllData } = require('../src/services/data');
+
+            await restoreCache();
+            const result = await fetchAllData();
+
+            expect(result.weather).toBeNull();
+        });
+
+        test('restoreCache handles missing file gracefully', async () => {
+            setupMocksAndFs(() => Promise.reject(new Error('should not be called')), 'missing');
+            const { restoreCache, fetchAllData } = require('../src/services/data');
+
+            await expect(restoreCache()).resolves.not.toThrow();
+            const result = await fetchAllData();
+            expect(result.weather).toBeNull();
+        });
+
+        test('restoreCache handles corrupt JSON gracefully', async () => {
+            setupMocksAndFs(() => Promise.reject(new Error('should not be called')), 'corrupt');
+            const { restoreCache, fetchAllData } = require('../src/services/data');
+
+            await expect(restoreCache()).resolves.not.toThrow();
+            const result = await fetchAllData();
+            expect(result.weather).toBeNull();
+        });
+
+        test('persistCache handles write errors gracefully', async () => {
+            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            const mockWeatherData = {
+                current: { temperature_2m: 20 },
+                daily: {
+                    temperature_2m_max: [20, 22, 23, 24],
+                    temperature_2m_min: [10, 11, 12, 13],
+                    precipitation_probability_max: [0, 10, 20, 30],
+                    weather_code: [0, 1, 2, 3]
+                }
+            };
+            const mockFs = setupMocksAndFs(() => Promise.resolve({ data: [mockWeatherData] }), {});
+            mockFs.writeFile.mockRejectedValue(new Error('EACCES'));
+            const { fetchAllData, persistCache } = require('../src/services/data');
+
+            await fetchAllData();
+            await expect(persistCache()).resolves.not.toThrow();
+        });
+
+        test('restored cache prevents re-fetch within TTL', async () => {
+            const freshTimestamp = Date.now() - 60000;
+            const cacheData = {
+                weather: {
+                    data: { outdoor: { current: 30, forecast: [] }, current_weather_code: 1, wind_speed: 10, humidity: 60 },
+                    timestamp: freshTimestamp
+                },
+                calendar: { data: null, timestamp: 0 },
+                lunch: { data: null, timestamp: 0 },
+                indoor: { data: null, timestamp: 0 }
+            };
+            const mockWeatherPayload = {
+                current: { temperature_2m: 99 },
+                daily: {
+                    temperature_2m_max: [99],
+                    temperature_2m_min: [99],
+                    precipitation_probability_max: [0],
+                    weather_code: [0]
+                }
+            };
+            const mockFn = jest.fn(() => Promise.resolve({ data: [mockWeatherPayload] }));
+            setupMocksAndFs(mockFn, cacheData);
+            const { restoreCache, fetchAllData } = require('../src/services/data');
+
+            await restoreCache();
+            await fetchAllData();
+
+            expect(mockFn).toHaveBeenCalledTimes(0);
+        });
+    });
 });

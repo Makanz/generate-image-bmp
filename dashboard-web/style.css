@@ -203,17 +203,18 @@ body {
 }
 
 .lunch-content {
-    font-size: 12px;
-    line-height: 1.5;
+    font-size: 16px;
+    line-height: 1.4;
 }
 
 .lunch-day-name {
-    font-weight: 700;
-    font-size: 11px;
+    font-weight: 800;
+    font-size: 18px;
     margin-bottom: 2px;
 }
 
 .lunch-meal {
+    font-size: 16px;
     padding: 1px 0;
 }
 

@@ -26,16 +26,16 @@ Wrap at 72 characters per line.
 
 ### Types
 
-| Type       | When to use                                         |
-|------------|-----------------------------------------------------|
-| `feat`     | A new feature                                       |
-| `fix`      | A bug fix                                           |
-| `refactor` | Code change with no behavior change                 |
-| `test`     | Adding or updating tests only                       |
-| `docs`     | Documentation only (README, AGENTS.md, comments)   |
-| `chore`    | Tooling, config, dependencies, build scripts        |
-| `perf`     | Performance improvement                             |
-| `style`    | Formatting, whitespace — no logic change            |
+| Type       | When to use                                      |
+| ---------- | ------------------------------------------------ |
+| `feat`     | A new feature                                    |
+| `fix`      | A bug fix                                        |
+| `refactor` | Code change with no behavior change              |
+| `test`     | Adding or updating tests only                    |
+| `docs`     | Documentation only (README, AGENTS.md, comments) |
+| `chore`    | Tooling, config, dependencies, build scripts     |
+| `perf`     | Performance improvement                          |
+| `style`    | Formatting, whitespace — no logic change         |
 
 ### Rules
 
@@ -44,7 +44,7 @@ Wrap at 72 characters per line.
   - ❌ `Added change detection threshold option.`
 - Keep the subject line ≤ 72 characters.
 - Omit the scope when the change is truly cross-cutting.
-- Use the body to explain *motivation* and *context*, not to repeat the diff.
+- Use the body to explain _motivation_ and _context_, not to repeat the diff.
 
 ### Co-author trailer
 

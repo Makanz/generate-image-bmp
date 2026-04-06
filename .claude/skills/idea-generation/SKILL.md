@@ -29,6 +29,7 @@ Read the key files to identify gaps, pain points, and potential enhancements:
 - `AGENTS.md` — project context and architecture overview
 
 Look for patterns like:
+
 - Hardcoded values that should be configurable
 - Missing resilience (retries, fallbacks, health signals)
 - Missing developer-experience improvements (logging, tooling, tests)
@@ -38,6 +39,7 @@ Look for patterns like:
 ## Step 3 — Generate new ideas
 
 Come up with ideas that are:
+
 - **Not already covered** by the existing idea files
 - **Grounded** in actual code observations (reference specific files and line patterns)
 - **Varied in scope** — mix quick wins with larger architectural improvements
@@ -59,7 +61,7 @@ where `<NN>` is the next sequential two-digit prefix (zero-padded, e.g. `05`, `0
 
 Every idea file must follow this exact structure:
 
-```markdown
+````markdown
 # <Impact Level> Impact: <Title>
 
 **Priority:** High | Medium | Low
@@ -79,6 +81,7 @@ functions, or patterns. Make it clear why this matters for this project.>
 ```typescript
 // Example code
 ```
+````
 
 ### 2. <Second sub-step or component>
 
@@ -86,14 +89,15 @@ functions, or patterns. Make it clear why this matters for this project.>
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
+| File              | Change                          |
+| ----------------- | ------------------------------- |
 | `path/to/file.ts` | Short description of the change |
 
 ## Verification
 
 - <Concrete, testable assertion that the change works correctly.>
 - <Another assertion.>
+
 ```
 
 ### Quality bar
@@ -110,17 +114,20 @@ After creating the files:
 
 1. Run `pnpm test` and confirm all tests pass before committing.
 2. Stage only the new idea files:
-   ```
-   git add ideas/
-   ```
+```
+
+git add ideas/
+
+```
 3. Commit with a message following the pattern:
-   ```
-   docs(ideas): add <N> new improvement ideas (<range>)
+```
 
-   - <NN>: one-line summary
-   - <NN>: one-line summary
-   ...
+docs(ideas): add <N> new improvement ideas (<range>)
 
-   Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-   ```
+- <NN>: one-line summary
+- <NN>: one-line summary
+  ...
+
+```
 4. Push to the current branch.
+```

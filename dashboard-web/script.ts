@@ -217,7 +217,7 @@ function updateSchoolLunch(data: LunchItem[] | null): void {
         return;
     }
 
-    const dayLabel = menu.datum ? `<div class="lunch-day-name">${escapeHtml(menu.datum)}</div>` : '';
+    const dayLabel = `<div class="lunch-day-name">${escapeHtml(dayNameCapitalized)}</div>`;
     const mealsHtml = (menu.meny || [])
         .map(meal => `<div class="lunch-meal">${escapeHtml(meal)}</div>`)
         .join('');

@@ -107,7 +107,36 @@ async function scheduledImageGeneration(): Promise<void> {
     console.log('[cron] Image generated successfully.');
 }
 
+export function isQuietHours(hour: number = new Date().getHours()): boolean {
+    const start = parseInt(process.env.QUIET_HOURS_START || '', 10);
+    const end   = parseInt(process.env.QUIET_HOURS_END   || '', 10);
+
+    if (isNaN(start) || isNaN(end)) return false;
+
+    if (start < end) {
+        return hour >= start && hour < end;
+    }
+    // Wraps midnight (e.g. 23–06)
+    return hour >= start || hour < end;
+}
+
+let wasInQuietHours = false;
+
 cron.schedule(`*/${REFRESH_INTERVAL} * * * *`, async () => {
+    const quiet = isQuietHours();
+    if (!wasInQuietHours && quiet) {
+        console.log('[cron] Stilla timmar börjar — genererar sista bild...');
+        try {
+            await scheduledImageGeneration();
+        } catch (err: unknown) {
+            handleApiError('[cron] Final quiet-hours image failed', err);
+        }
+    }
+    wasInQuietHours = quiet;
+    if (quiet) {
+        console.log('[cron] Stilla timmar aktiva — hoppar över generering.');
+        return;
+    }
     try {
         await scheduledImageGeneration();
     } catch (err: unknown) {

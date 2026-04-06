@@ -29,6 +29,78 @@ jest.mock('../src/services/image-processing', () => ({
     extractRegion: jest.fn().mockResolvedValue(Buffer.from('BM'))
 }));
 
+describe('isQuietHours()', () => {
+    let isQuietHours;
+
+    beforeAll(() => {
+        isQuietHours = require('../server').isQuietHours;
+    });
+
+    afterEach(() => {
+        delete process.env.QUIET_HOURS_START;
+        delete process.env.QUIET_HOURS_END;
+    });
+
+    test('returns false when vars are not set', () => {
+        expect(isQuietHours(2)).toBe(false);
+    });
+
+    test('returns false when only one var is set', () => {
+        process.env.QUIET_HOURS_START = '23';
+        expect(isQuietHours(2)).toBe(false);
+    });
+
+    describe('midnight-wrapping range (23–6)', () => {
+        beforeEach(() => {
+            process.env.QUIET_HOURS_START = '23';
+            process.env.QUIET_HOURS_END = '6';
+        });
+
+        test('returns true at 01:00 (inside range)', () => {
+            expect(isQuietHours(1)).toBe(true);
+        });
+
+        test('returns true at 23:00 (start boundary)', () => {
+            expect(isQuietHours(23)).toBe(true);
+        });
+
+        test('returns true at 05:00 (just before end)', () => {
+            expect(isQuietHours(5)).toBe(true);
+        });
+
+        test('returns false at 06:00 (end boundary — resume)', () => {
+            expect(isQuietHours(6)).toBe(false);
+        });
+
+        test('returns false at 12:00 (outside range)', () => {
+            expect(isQuietHours(12)).toBe(false);
+        });
+    });
+
+    describe('non-wrapping range (1–6)', () => {
+        beforeEach(() => {
+            process.env.QUIET_HOURS_START = '1';
+            process.env.QUIET_HOURS_END = '6';
+        });
+
+        test('returns true at 03:00 (inside range)', () => {
+            expect(isQuietHours(3)).toBe(true);
+        });
+
+        test('returns false at 23:00 (outside range)', () => {
+            expect(isQuietHours(23)).toBe(false);
+        });
+
+        test('returns true at 01:00 (start boundary)', () => {
+            expect(isQuietHours(1)).toBe(true);
+        });
+
+        test('returns false at 06:00 (end boundary — resume)', () => {
+            expect(isQuietHours(6)).toBe(false);
+        });
+    });
+});
+
 describe('server - API endpoints', () => {
     let app;
     let server;

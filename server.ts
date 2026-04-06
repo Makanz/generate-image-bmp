@@ -115,7 +115,7 @@ cron.schedule(`*/${REFRESH_INTERVAL} * * * *`, async () => {
     }
 });
 
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
     console.log(`Dashboard server running on http://localhost:${PORT}`);
     setTimeout(async () => {
         console.log('[startup] Fetching fresh data and generating initial image...');
@@ -129,4 +129,4 @@ app.listen(PORT, async () => {
     }, SERVER_STARTUP_DELAY_MS);
 });
 
-export { app };
+export { app, server };

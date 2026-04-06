@@ -1,7 +1,10 @@
 import axios from 'axios';
+import fs from 'fs/promises';
+import path from 'path';
 import { fetchIndoorTemperatures } from './homey';
 import { HTTP_TIMEOUT_MS, WEATHER_FORECAST_START_INDEX, WEATHER_FORECAST_COUNT } from '../utils/constants';
 import { handleApiError } from '../utils/errors';
+import { getAppRoot } from '../utils/path';
 
 const CACHE_TTL_MS: Record<string, number> = {
     weather:  parseInt(process.env.WEATHER_REFRESH_MINUTES  || '15', 10) * 60 * 1000,
@@ -84,6 +87,8 @@ let cache: Cache = {
 };
 
 let pendingFetches: Partial<Record<keyof Cache, Promise<unknown>>> = {};
+
+const CACHE_FILE = path.join(getAppRoot(), 'output', 'cache.json');
 
 function isCacheValid(source: keyof Cache): boolean {
     const cacheEntry = cache[source];
@@ -213,6 +218,10 @@ async function fetchSource<T>(key: keyof Cache, fetchFn: () => Promise<T | null>
             timestamp: data !== null ? now : Math.max(1, now - CACHE_TTL_MS[key] + ERROR_RETRY_MS)
         };
 
+        if (data !== null) {
+            await persistCache();
+        }
+
         delete pendingFetches[key];
         return data;
     })();
@@ -251,5 +260,67 @@ async function fetchWeatherFresh(): Promise<WeatherData | null> {
     return fetchSource('weather', fetchWeather);
 }
 
-export { fetchAllData, fetchAllDataFresh, fetchWeatherFresh };
+async function persistCache(): Promise<void> {
+    try {
+        await fs.mkdir(path.dirname(CACHE_FILE), { recursive: true });
+        await fs.writeFile(CACHE_FILE, JSON.stringify(cache), 'utf-8');
+    } catch {
+        // Non-fatal — in-memory cache is still valid
+    }
+}
+
+async function restoreCache(): Promise<void> {
+    try {
+        const raw = await fs.readFile(CACHE_FILE, 'utf-8');
+        const saved: Cache = JSON.parse(raw);
+
+        const weatherEntry = saved.weather;
+        if (isValidCacheEntry(weatherEntry)) {
+            const age = Date.now() - weatherEntry.timestamp;
+            if (weatherEntry.data !== null && age < CACHE_TTL_MS.weather) {
+                cache.weather = weatherEntry;
+            }
+        }
+
+        const calendarEntry = saved.calendar;
+        if (isValidCacheEntry(calendarEntry)) {
+            const age = Date.now() - calendarEntry.timestamp;
+            if (calendarEntry.data !== null && age < CACHE_TTL_MS.calendar) {
+                cache.calendar = calendarEntry;
+            }
+        }
+
+        const lunchEntry = saved.lunch;
+        if (isValidCacheEntry(lunchEntry)) {
+            const age = Date.now() - lunchEntry.timestamp;
+            if (lunchEntry.data !== null && age < CACHE_TTL_MS.lunch) {
+                cache.lunch = lunchEntry;
+            }
+        }
+
+        const indoorEntry = saved.indoor;
+        if (isValidCacheEntry(indoorEntry)) {
+            const age = Date.now() - indoorEntry.timestamp;
+            if (indoorEntry.data !== null && age < CACHE_TTL_MS.indoor) {
+                cache.indoor = indoorEntry;
+            }
+        }
+
+        console.log('[data] Cache restored from disk.');
+    } catch {
+        // File missing or corrupt — start with empty cache
+    }
+}
+
+function isValidCacheEntry<T>(entry: unknown): entry is CacheEntry<T> {
+    return (
+        typeof entry === 'object' &&
+        entry !== null &&
+        'data' in entry &&
+        'timestamp' in entry &&
+        typeof (entry as CacheEntry<T>).timestamp === 'number'
+    );
+}
+
+export { fetchAllData, fetchAllDataFresh, fetchWeatherFresh, persistCache, restoreCache };
 export type { WeatherData, IndoorData, CalendarData, AllData, ForecastDay, Room, LunchItem };

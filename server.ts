@@ -4,7 +4,7 @@ import path from 'path';
 import cron from 'node-cron';
 import { extractRegion } from './src/services/image-processing';
 import { generateImage, getChanges } from './capture';
-import { fetchAllData, fetchAllDataFresh, fetchWeatherFresh } from './src/services/data';
+import { fetchAllData, fetchAllDataFresh, fetchWeatherFresh, restoreCache } from './src/services/data';
 import { handleApiError } from './src/utils/errors';
 import { getAppRoot } from './src/utils/path';
 import { SERVER_STARTUP_DELAY_MS } from './src/utils/constants';
@@ -147,6 +147,7 @@ cron.schedule(`*/${REFRESH_INTERVAL} * * * *`, async () => {
 const server = app.listen(PORT, async () => {
     console.log(`Dashboard server running on http://localhost:${PORT}`);
     setTimeout(async () => {
+        await restoreCache();
         console.log('[startup] Fetching fresh data and generating initial image...');
         try {
             await fetchAllDataFresh();

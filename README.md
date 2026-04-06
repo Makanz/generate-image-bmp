@@ -1,6 +1,6 @@
 # GenerateImageBmp
 
-Dashboard-app som genererar BMP/PNG-bilder (800x480) med väder, kalender och lunchdata från n8n-webhooks.
+Dashboard-app som genererar BMP-bilder (800x480) med väder, kalender och lunchdata från n8n-webhooks.
 
 ## Arkitektur
 
@@ -20,7 +20,6 @@ Dashboard-app som genererar BMP/PNG-bilder (800x480) med väder, kalender och lu
 │  ├── GET /api/data     → Aggregerad data från n8n              │
 │  ├── POST /api/refresh → Generera bild manuellt                │
 │  ├── GET /api/changes  → Pixel-förändringar mellan bilder      │
-│  ├── GET /api/image-region → Bildregion (PNG, base64/raw)      │
 │  ├── GET /dashboard.bmp → Senaste BMP (1-bit monokrom)         │
 │  ├── GET /dashboard.previous.bmp → Föregående BMP              │
 │  └── GET /output/:filename → Filer från output-katalogen       │
@@ -148,7 +147,6 @@ http://<server-ip>:3000/dashboard.bmp
 | `/api/data` | GET | Aggregerad data från n8n |
 | `/api/refresh` | POST | Generera bild manuellt |
 | `/api/changes` | GET | Pixel-förändringar mellan nuvarande och föregående bild |
-| `/api/image-region` | GET | Extrahera bildregion som PNG (query: x, y, w, h, format) |
 | `/dashboard.bmp` | GET | Senaste BMP-bild |
 | `/dashboard.previous.bmp` | GET | Föregående BMP-bild |
 | `/output/:filename` | GET | Filer från output-katalogen |

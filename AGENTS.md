@@ -25,13 +25,12 @@ server.ts (Express) ──► src/services/data.ts  (in-memory cache, per-source
           └── screenshotWithBrowserless() (if BROWSERLESS_URL is set)
                 │
                 ▼
-           sharp pipeline → output/dashboard.png  (color PNG)
-                         → output/dashboard.bmp   (1-bit monochrome, for ESP32)
+           sharp pipeline → output/dashboard.bmp   (1-bit monochrome, for ESP32)
 ```
 
 `capture.ts` is both a standalone CLI (`pnpm run generate`) and an importable module.
 
-**Change detection**: `capture.ts` saves `dashboard.previous.png` before each capture. `getChanges()` flood-fills pixel diffs to find changed regions, then merges nearby rectangles (`MERGE_DISTANCE = 10px`). Exposed at `GET /api/changes`.
+**Change detection**: `capture.ts` saves `dashboard.previous.bmp` before each capture. `getChanges()` flood-fills pixel diffs to find changed regions, then merges nearby rectangles (`MERGE_DISTANCE = 10px`). Exposed at `GET /api/changes`.
 
 ## Project Structure
 
@@ -109,7 +108,7 @@ pnpm test            # Run Jest test suite
 
 **Weather retry on startup**: `server.ts` retries weather up to 3 times (3s apart) before generating the initial image, to avoid blank weather data on a cold start.
 
-**Output files**: Both `dashboard.png` and `dashboard.bmp` are always written together in `generateImage()`. The `output/` directory is created automatically.
+**Output files**: `dashboard.bmp` is written to the `output/` directory. The `output/` directory is created automatically.
 
 **BMP format**: 1-bit monochrome (BITMAPINFOHEADER, top-down with negative height, 2-color table: black `0x000000` / white `0xFFFFFF`, row padded to 4-byte boundary).
 

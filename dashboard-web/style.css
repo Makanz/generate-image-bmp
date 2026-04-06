@@ -1,14 +1,46 @@
+/* CSS-variabler */
+:root {
+    /* Färger */
+    --color-text: #000;
+    --color-bg: #fff;
+    --color-border: #000;
+
+    /* Typografi */
+    --font-family: 'Roboto', Arial, Helvetica, sans-serif;
+    --font-weight-normal: 400;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extrabold: 800;
+
+    /* Spacing (8px rutsystem) */
+    --spacing-xs: 2px;
+    --spacing-sm: 4px;
+    --spacing-md: 8px;
+    --spacing-lg: 12px;
+    --spacing-xl: 16px;
+    --spacing-2xl: 24px;
+
+    /* Line Heights */
+    --line-height-tight: 0.88;
+    --line-height-snug: 0.9;
+    --line-height-normal: 1;
+    --line-height-relaxed: 1.4;
+
+    /* Border */
+    --border-width: 1px;
+    --border-divider: var(--border-width) solid var(--color-border);
+}
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    color: #000 !important;
 }
 
 body {
-    font-family: 'Roboto', Arial, Helvetica, sans-serif;
-    background: #fff;
-    color: #000;
+    font-family: var(--font-family);
+    background: var(--color-bg);
+    color: var(--color-text);
     width: 800px;
     height: 480px;
     overflow: hidden;
@@ -23,7 +55,7 @@ body {
 .col {
     display: flex;
     flex-direction: column;
-    padding: 12px 10px;
+    padding: var(--spacing-lg);
     overflow: hidden;
 }
 
@@ -44,15 +76,15 @@ body {
 
 /* ── Avdelare ── */
 .divider-v {
-    width: 1px;
-    background: #000;
+    width: var(--border-width);
+    background: var(--color-border);
     flex-shrink: 0;
 }
 
 .divider-h {
-    height: 1px;
-    background: #000;
-    margin: 8px 0;
+    height: var(--border-width);
+    background: var(--color-border);
+    margin: var(--spacing-md) 0;
     flex-shrink: 0;
 }
 
@@ -69,14 +101,14 @@ body {
     justify-content: space-between;
     align-items: baseline;
     font-size: 18px;
-    font-weight: 800;
+    font-weight: var(--font-weight-extrabold);
 }
 
 .temp-label {
     font-size: 16px;
-    font-weight: 800;
+    font-weight: var(--font-weight-extrabold);
     letter-spacing: 2px;
-    line-height: 1;
+    line-height: var(--line-height-normal);
 }
 
 .temp-row {
@@ -86,17 +118,17 @@ body {
 
 .temp-main {
     font-size: 158px;
-    font-weight: 700;
-    line-height: 0.9;
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-snug);
     letter-spacing: -5px;
 }
 
 .temp-trend {
     font-size: 28px;
-    font-weight: 400;
+    font-weight: var(--font-weight-normal);
     letter-spacing: 0;
     vertical-align: top;
-    margin-left: 2px;
+    margin-left: var(--spacing-sm);
 }
 
 #ute-temp,
@@ -106,34 +138,32 @@ body {
 
 .temp-unit {
     font-size: 16px;
-    font-weight: 800;
+    font-weight: var(--font-weight-extrabold);
 }
 
 .temp-forecast {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 5px;
-    margin-top: 6px;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
 }
 
 .forecast-item {
     font-size: 24px;
-    font-weight: 800;
-    color: #000;
+    font-weight: var(--font-weight-extrabold);
 }
 
 .forecast-sep {
     font-size: 16px;
-    color: #000;
 }
 
 .temp-rooms {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    margin-top: 6px;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-md);
 }
 
 #room-chart {
@@ -144,8 +174,8 @@ body {
     display: flex;
     justify-content: space-between;
     font-size: 14px;
-    font-weight: 600;
-    padding: 1px 0;
+    font-weight: var(--font-weight-semibold);
+    padding: var(--spacing-xs) 0;
 }
 
 .room-name {
@@ -153,69 +183,69 @@ body {
 }
 
 .room-temp {
-    font-weight: 800;
+    font-weight: var(--font-weight-extrabold);
 }
 
 /* ── Datumkolumn ── */
 .date-section {
-    flex-shrink: 0;
+    flex: none;
+    height: 228px;
+    display: flex;
+    flex-direction: column;
     text-align: center;
-}
-
-.date-year {
-    font-size: 30px;
-    font-weight: 600;
-    letter-spacing: 4px;
-    line-height: 1;
+    padding-top: 19px;
+    border-bottom: var(--border-divider);
 }
 
 .date-day {
     font-size: 158px;
-    font-weight: 700;
-    line-height: 0.88;
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
     letter-spacing: -4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 167.7px;
 }
 
 .date-month {
     font-size: 20px;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     letter-spacing: 5px;
-    margin-top: 2px;
-    border-bottom: 1px solid #000;
-    padding-bottom: 34px;
+    margin-top: -17px;
 }
 
 /* ── Lunchsektion ── */
 .lunch-section {
     flex: 1;
-    margin-top: 10px;
+    margin-top: var(--spacing-md);
     min-height: 0;
     overflow: hidden;
 }
 
 .section-label {
     font-size: 16px;
-    font-weight: 800;
+    font-weight: var(--font-weight-extrabold);
     letter-spacing: 2px;
-    margin-bottom: 4px;
-    border-bottom: 1px solid #000;
-    padding-bottom: 2px;
+    margin-bottom: var(--spacing-sm);
+    border-bottom: var(--border-divider);
+    padding-bottom: var(--spacing-xs);
 }
 
 .lunch-content {
     font-size: 16px;
-    line-height: 1.4;
+    line-height: var(--line-height-relaxed);
 }
 
 .lunch-day-name {
-    font-weight: 800;
+    font-weight: var(--font-weight-extrabold);
     font-size: 18px;
-    margin-bottom: 2px;
+    margin-bottom: var(--spacing-xs);
 }
 
 .lunch-meal {
     font-size: 16px;
-    padding: 1px 0;
+    padding: var(--spacing-xs) 0;
 }
 
 .lunch-meal::before {
@@ -233,47 +263,41 @@ body {
 
 .cal-events {
     font-size: 12px;
-    line-height: 1.4;
+    line-height: var(--line-height-relaxed);
     flex: 1;
     overflow: hidden;
 }
 
 .cal-event {
     display: flex;
-    gap: 6px;
-    padding: 2px 0;
+    gap: var(--spacing-md);
+    padding: var(--spacing-xs) 0;
     white-space: nowrap;
     overflow: hidden;
 }
 
 .cal-time {
     font-size: 16px;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     flex-shrink: 0;
     width: 48px;
-    color: #000;
 }
 
 .cal-title {
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: #000;
     font-size: 18px;
-    font-weight: 800;
+    font-weight: var(--font-weight-extrabold);
 }
-
-
 
 /* ── Generellt ── */
 .loading {
-    color: #000;
     font-style: italic;
     font-size: 12px;
 }
 
 .no-data {
-    color: #000;
     font-size: 16px;
-    font-weight: bold;
+    font-weight: var(--font-weight-bold);
 }

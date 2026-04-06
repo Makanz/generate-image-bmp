@@ -122,10 +122,8 @@ function formatTime(datetimeStr: string): string {
 
 function updateDate(): void {
     const now = new Date();
-    const yearEl = document.getElementById('date-year');
     const dayEl = document.getElementById('date-day');
     const monthEl = document.getElementById('date-month');
-    if (yearEl) yearEl.textContent = String(now.getFullYear());
     if (dayEl) dayEl.textContent = String(now.getDate());
     if (monthEl) monthEl.textContent = MONTHS_SV[now.getMonth()];
 }
@@ -301,13 +299,21 @@ function generateMockData(): void {
         }
     );
 
+    const mockToday = new Date();
+    const mockTomorrow = new Date(mockToday);
+    mockTomorrow.setDate(mockTomorrow.getDate() + 1);
+    const DAY_NAMES_CAP = ['Söndag','Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag'];
+    const MONTH_NAMES_CAP = ['Januari','Februari','Mars','April','Maj','Juni','Juli','Augusti','September','Oktober','November','December'];
+    const todayDatum = `${DAY_NAMES_CAP[mockToday.getDay()]} ${mockToday.getDate()} ${MONTH_NAMES_CAP[mockToday.getMonth()]}`;
+    const tomorrowDatum = `${DAY_NAMES_CAP[mockTomorrow.getDay()]} ${mockTomorrow.getDate()} ${MONTH_NAMES_CAP[mockTomorrow.getMonth()]}`;
+
     updateSchoolLunch([
         {
-            datum: 'Måndag 23 Mars',
+            datum: todayDatum,
             meny: ['Klimatsmartvecka: Chilipanna med ris', 'Falafelbiff med ris', 'Salladsbuffe']
         },
         {
-            datum: 'Tisdag 24 Mars',
+            datum: tomorrowDatum,
             meny: ['Västkustfisk med potatismos', 'Blomkålssoppa', 'Salladsbuffe']
         }
     ]);

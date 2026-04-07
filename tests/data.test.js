@@ -297,7 +297,44 @@ describe('data.js', () => {
         });
     });
 
-    describe('cache persistence', () => {
+    describe('error handling preserves stale cache', () => {
+        test('returns stale cached data when API fails after a successful fetch', async () => {
+            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.WEATHER_REFRESH_MINUTES = '0'; // expire immediately
+            const mockWeatherData = {
+                current: { temperature_2m: 22, weather_code: 1, wind_speed_10m: 5, relative_humidity_2m: 60 },
+                daily: {
+                    temperature_2m_max: [22, 24, 25, 26],
+                    temperature_2m_min: [12, 13, 14, 15],
+                    precipitation_probability_max: [0, 10, 20, 30],
+                    weather_code: [1, 0, 2, 3]
+                }
+            };
+            let callCount = 0;
+            const mockFn = jest.fn(async () => {
+                callCount++;
+                if (callCount === 1) return { data: [mockWeatherData] };
+                throw new Error('API unavailable');
+            });
+            setupMocks(mockFn);
+            const { fetchAllData, fetchAllDataFresh } = require('../src/services/data');
+
+            // First fetch succeeds and populates cache
+            const first = await fetchAllData();
+            expect(first.weather).not.toBeNull();
+            expect(first.weather.outdoor.current).toBe(22);
+
+            // Force cache expiry and fetch again — API now fails
+            const second = await fetchAllDataFresh();
+
+            // Should still return the previously cached data, not null
+            expect(second.weather).not.toBeNull();
+            expect(second.weather.outdoor.current).toBe(22);
+            expect(callCount).toBe(2);
+        });
+    });
+
+
         function setupMocksAndFs(axiosGetImpl, fsOps) {
             jest.doMock('axios', () => ({
                 get: jest.fn(axiosGetImpl)

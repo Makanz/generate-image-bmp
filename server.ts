@@ -22,14 +22,17 @@ async function sleep(ms: number): Promise<void> {
     return new Promise(r => setTimeout(r, ms));
 }
 
-async function generateImageWhenReady(): Promise<void> {
-    let weather = (await fetchAllData()).weather;
-    for (let i = 0; i < WEATHER_ENSURE_RETRIES && (weather?.outdoor?.current == null); i++) {
+async function generateImageWhenReady(forceRefresh = false): Promise<void> {
+    let data = forceRefresh ? await fetchAllDataFresh() : await fetchAllData();
+    let weather = data.weather;
+    // Only retry if weather is completely unavailable (total API failure),
+    // not just because current temperature is missing in an otherwise valid response.
+    for (let i = 0; i < WEATHER_ENSURE_RETRIES && weather === null; i++) {
         console.warn(`[server] Väderdata saknas, försöker hämta igen (${i + 1}/${WEATHER_ENSURE_RETRIES})...`);
         await sleep(WEATHER_ENSURE_DELAY_MS);
         weather = await fetchWeatherFresh();
     }
-    if (weather?.outdoor?.current == null) {
+    if (weather === null) {
         console.warn('[server] Väderdata fortfarande otillgänglig, genererar bild ändå');
     }
     await generateImage();
@@ -95,15 +98,13 @@ app.get('/api/image-region', withErrorHandling('Error getting image region', asy
 }));
 
 app.post('/api/refresh', withErrorHandling('Image generation failed', async (_req, res) => {
-    await fetchAllDataFresh();
-    await generateImageWhenReady();
+    await generateImageWhenReady(true);
     res.json({ ok: true, timestamp: new Date().toISOString() });
 }));
 
 async function scheduledImageGeneration(): Promise<void> {
     console.log(`[cron] Fetching fresh data and generating image (every ${REFRESH_INTERVAL} min)...`);
-    await fetchAllDataFresh();
-    await generateImageWhenReady();
+    await generateImageWhenReady(true);
     console.log('[cron] Image generated successfully.');
 }
 
@@ -150,8 +151,7 @@ const server = app.listen(PORT, async () => {
         await restoreCache();
         console.log('[startup] Fetching fresh data and generating initial image...');
         try {
-            await fetchAllDataFresh();
-            await generateImageWhenReady();
+            await generateImageWhenReady(true);
             console.log('[startup] Initial image ready.');
         } catch (err: unknown) {
             handleApiError('[startup] Image generation failed', err);

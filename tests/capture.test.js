@@ -1,6 +1,29 @@
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
+
+jest.mock('../src/services/screenshot', () => ({
+    createScreenshotProvider: jest.fn().mockReturnValue({
+        capture: jest.fn().mockResolvedValue(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]))
+    })
+}));
+
+jest.mock('sharp', () => {
+    return jest.fn().mockImplementation(() => ({
+        greyscale: jest.fn().mockReturnThis(),
+        threshold: jest.fn().mockReturnThis(),
+        raw: jest.fn().mockReturnThis(),
+        toBuffer: jest.fn().mockResolvedValue({
+            data: Buffer.alloc(800 * 480),
+            info: { width: 800, height: 480 }
+        })
+    }));
+});
+
+jest.mock('../src/image/bmp-writer', () => ({
+    writeBmp: jest.fn().mockResolvedValue(undefined)
+}));
+
 const { computeChecksum, mergeRegions, detectChanges } = require('../capture.ts');
 
 describe('capture.js - computeChecksum', () => {
@@ -201,5 +224,61 @@ describe('capture.js - mergeRegions edge cases', () => {
         expect(merged).toHaveLength(1);
         expect(merged[0].x).toBe(5);
         expect(merged[0].width).toBe(2);
+    });
+});
+
+describe('capture.js - concurrent generation guard', () => {
+    beforeEach(() => {
+        jest.resetModules();
+    });
+
+    afterEach(() => {
+        jest.resetModules();
+    });
+
+    test('concurrent calls coalesce into single generation', async () => {
+        const { generateImage, getInFlightGeneration } = require('../capture.ts');
+        
+        expect(getInFlightGeneration()).toBeNull();
+        
+        const promise1 = generateImage({ outputBmp: 'output/test1.bmp' });
+        expect(getInFlightGeneration()).not.toBeNull();
+        
+        const promise2 = generateImage({ outputBmp: 'output/test2.bmp' });
+        expect(getInFlightGeneration()).not.toBeNull();
+        
+        await promise1;
+        
+        expect(promise1).resolves.toEqual({ bmp: expect.any(String) });
+        expect(promise2).resolves.toEqual({ bmp: expect.any(String) });
+    });
+
+    test('after generation completes, new call starts new generation', async () => {
+        const { generateImage, getInFlightGeneration } = require('../capture.ts');
+        
+        const promise1 = generateImage({ outputBmp: 'output/test.bmp' });
+        expect(getInFlightGeneration()).not.toBeNull();
+        await promise1;
+        
+        expect(getInFlightGeneration()).toBeNull();
+        
+        const promise2 = generateImage({ outputBmp: 'output/test.bmp' });
+        expect(getInFlightGeneration()).not.toBeNull();
+        
+        await promise2;
+        expect(getInFlightGeneration()).toBeNull();
+    });
+
+    test('getInFlightGeneration() reflects generation state', async () => {
+        const { generateImage, getInFlightGeneration } = require('../capture.ts');
+        
+        expect(getInFlightGeneration()).toBeNull();
+        
+        const promise = generateImage({ outputBmp: 'output/test.bmp' });
+        expect(getInFlightGeneration()).not.toBeNull();
+        
+        await promise;
+        
+        expect(getInFlightGeneration()).toBeNull();
     });
 });

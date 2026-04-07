@@ -16,7 +16,18 @@ interface GenerateImageOptions {
     outputBmp?: string;
 }
 
-async function generateImage(options: GenerateImageOptions = {}): Promise<{ bmp: string }> {
+let inFlightGeneration: Promise<{ bmp: string }> | null = null;
+let currentGenerationSource: Promise<{ bmp: string }> | null = null;
+
+export function isGenerating(): boolean {
+    return inFlightGeneration !== null;
+}
+
+export function getInFlightGeneration(): Promise<{ bmp: string }> | null {
+    return inFlightGeneration;
+}
+
+async function _generateImage(options: GenerateImageOptions = {}): Promise<{ bmp: string }> {
     const {
         outputBmp = path.join(OUTPUT_DIR, 'dashboard.bmp')
     } = options;
@@ -49,6 +60,22 @@ async function generateImage(options: GenerateImageOptions = {}): Promise<{ bmp:
     console.log(`[capture] BMP saved: ${outputBmp}`);
 
     return { bmp: outputBmp };
+}
+
+async function generateImage(options: GenerateImageOptions = {}): Promise<{ bmp: string }> {
+    if (inFlightGeneration) {
+        console.log('[capture] Generation already in progress, awaiting existing run...');
+        return inFlightGeneration;
+    }
+
+    currentGenerationSource = _generateImage(options);
+    const wrapped = currentGenerationSource.finally(() => {
+        inFlightGeneration = null;
+        currentGenerationSource = null;
+    });
+    inFlightGeneration = wrapped;
+
+    return inFlightGeneration;
 }
 
 async function getChanges(): Promise<ChangesResult> {

@@ -488,5 +488,4 @@ describe('data.js', () => {
 
             expect(mockFn).toHaveBeenCalledTimes(0);
         });
-    });
 });

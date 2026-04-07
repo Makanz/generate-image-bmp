@@ -181,7 +181,31 @@ function createWebhookFetcher<T>(
     };
 }
 
-const fetchWeather = createWebhookFetcher<WeatherData>('Weather', 'N8N_WEBHOOK_WEATHER', (raw: unknown) => normalizeWeather(raw as WeatherRaw | WeatherRaw[] | null));
+const OPEN_METEO_BASE = 'https://api.open-meteo.com/v1/forecast';
+const OPEN_METEO_PARAMS = [
+    'current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m',
+    'daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code',
+    'timezone=auto',
+    'forecast_days=4',
+    'wind_speed_unit=ms'
+].join('&');
+
+async function fetchWeather(): Promise<WeatherData | null> {
+    const lat = process.env.OPEN_METEO_LAT;
+    const lon = process.env.OPEN_METEO_LON;
+    if (!lat || !lon) {
+        console.warn('[data] OPEN_METEO_LAT/OPEN_METEO_LON not configured');
+        return null;
+    }
+    const url = `${OPEN_METEO_BASE}?latitude=${lat}&longitude=${lon}&${OPEN_METEO_PARAMS}`;
+    try {
+        const response = await axios.get(url, { timeout: HTTP_TIMEOUT_MS });
+        return normalizeWeather(response.data as WeatherRaw);
+    } catch (err: unknown) {
+        handleApiError('[data] Weather fetch failed', err);
+        return null;
+    }
+}
 const fetchCalendar = createWebhookFetcher<CalendarData>('Calendar', 'N8N_WEBHOOK_CALENDAR');
 const fetchLunch = createWebhookFetcher<LunchItem[]>('Lunch', 'N8N_WEBHOOK_LUNCH');
 
@@ -213,17 +237,24 @@ async function fetchSource<T>(key: keyof Cache, fetchFn: () => Promise<T | null>
         const data = await fetchFn();
         const now = Date.now();
 
-        cache[key] = {
-            data: data as never,
-            timestamp: data !== null ? now : Math.max(1, now - CACHE_TTL_MS[key] + ERROR_RETRY_MS)
-        };
-
         if (data !== null) {
+            cache[key] = {
+                data: data as never,
+                timestamp: now
+            };
             await persistCache();
+        } else {
+            // Keep existing cached data so stale-but-valid data is still served.
+            // Only advance the timestamp so we retry after ERROR_RETRY_MS instead
+            // of hammering the API on every request.
+            cache[key] = {
+                data: cache[key].data as never,
+                timestamp: Math.max(1, now - CACHE_TTL_MS[key] + ERROR_RETRY_MS)
+            };
         }
 
         delete pendingFetches[key];
-        return data;
+        return cache[key].data as T | null;
     })();
 
     pendingFetches[key] = fetchPromise;

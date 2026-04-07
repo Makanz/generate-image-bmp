@@ -13,6 +13,8 @@ describe('data.js', () => {
         delete process.env.LUNCH_REFRESH_HOURS;
         delete process.env.INDOOR_REFRESH_MINUTES;
         delete process.env.ERROR_RETRY_MINUTES;
+        delete process.env.OPEN_METEO_LAT;
+        delete process.env.OPEN_METEO_LON;
     });
 
     function setupMocks(axiosGetImpl) {
@@ -26,7 +28,8 @@ describe('data.js', () => {
 
     describe('normalizeWeather via fetchAllData', () => {
         test('returns null for null input', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             setupMocks(() => Promise.resolve({ data: null }));
             const { fetchAllData } = require('../src/services/data');
             const result = await fetchAllData();
@@ -34,7 +37,8 @@ describe('data.js', () => {
         });
 
         test('handles single weather object', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             const mockWeatherData = {
                 current: { temperature_2m: 15, weather_code: 2, wind_speed_10m: 10, relative_humidity_2m: 65 },
                 daily: {
@@ -58,7 +62,8 @@ describe('data.js', () => {
         });
 
         test('handles array input', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             const mockWeatherData = {
                 current: { temperature_2m: 20 },
                 daily: {
@@ -77,7 +82,8 @@ describe('data.js', () => {
         });
 
         test('forecast skips index 0 (today)', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             const mockWeatherData = {
                 current: { temperature_2m: 25 },
                 daily: {
@@ -140,7 +146,8 @@ describe('data.js', () => {
 
     describe('isCacheValid', () => {
         test('returns cached data on subsequent calls within TTL', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             process.env.WEATHER_REFRESH_MINUTES = '60';
             const mockWeatherData = {
                 current: { temperature_2m: 20 },
@@ -162,7 +169,8 @@ describe('data.js', () => {
 
     describe('fetchAllData', () => {
         test('returns all data sources with timestamp', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             const mockWeatherData = {
                 current: { temperature_2m: 20 },
                 daily: {
@@ -185,7 +193,8 @@ describe('data.js', () => {
 
     describe('fetchAllDataFresh bypasses cache', () => {
         test('makes new API calls after fresh call', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             process.env.WEATHER_REFRESH_MINUTES = '60';
             const mockWeatherData = {
                 current: { temperature_2m: 20, weather_code: 1 },
@@ -207,7 +216,8 @@ describe('data.js', () => {
 
     describe('fetchWeatherFresh invalidates weather cache', () => {
         test('makes new API calls after fresh call', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             process.env.WEATHER_REFRESH_MINUTES = '60';
             const mockWeatherData = {
                 current: { temperature_2m: 20, weather_code: 1 },
@@ -229,7 +239,8 @@ describe('data.js', () => {
 
     describe('race condition prevention', () => {
         test('concurrent fetchAllData calls share single pending fetch', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             process.env.WEATHER_REFRESH_MINUTES = '60';
 
             const mockWeatherData = {
@@ -262,7 +273,8 @@ describe('data.js', () => {
         });
 
         test('fetchAllDataFresh does not cause duplicate fetches with concurrent requests', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             process.env.WEATHER_REFRESH_MINUTES = '60';
 
             const mockWeatherData = {
@@ -299,7 +311,8 @@ describe('data.js', () => {
 
     describe('error handling preserves stale cache', () => {
         test('returns stale cached data when API fails after a successful fetch', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             process.env.WEATHER_REFRESH_MINUTES = '0'; // expire immediately
             const mockWeatherData = {
                 current: { temperature_2m: 22, weather_code: 1, wind_speed_10m: 5, relative_humidity_2m: 60 },
@@ -357,7 +370,8 @@ describe('data.js', () => {
         }
 
         test('persistCache writes cache.json after successful fetch', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             const mockWeatherData = {
                 current: { temperature_2m: 20 },
                 daily: {
@@ -441,7 +455,8 @@ describe('data.js', () => {
         });
 
         test('persistCache handles write errors gracefully', async () => {
-            process.env.N8N_WEBHOOK_WEATHER = 'http://test.local/weather';
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
             const mockWeatherData = {
                 current: { temperature_2m: 20 },
                 daily: {

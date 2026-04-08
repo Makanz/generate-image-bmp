@@ -1,5 +1,16 @@
-const MONTHS_SV = ['JANUARI','FEBRUARI','MARS','APRIL','MAJ','JUNI','JULI','AUGUSTI','SEPTEMBER','OKTOBER','NOVEMBER','DECEMBER'];
-const DAYS_SV = ['söndag','måndag','tisdag','onsdag','torsdag','fredag','lördag'];
+// ── Locale constants ─────────────────────────────────────────────────────────
+
+const MONTHS_LOWER = [
+    'januari', 'februari', 'mars', 'april', 'maj', 'juni',
+    'juli', 'augusti', 'september', 'oktober', 'november', 'december',
+];
+const MONTHS_UPPER = MONTHS_LOWER.map(m => m.toUpperCase());
+const MONTHS_CAP   = MONTHS_LOWER.map(m => m.charAt(0).toUpperCase() + m.slice(1));
+
+const DAYS_LOWER = ['söndag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag'];
+const DAYS_CAP   = DAYS_LOWER.map(d => d.charAt(0).toUpperCase() + d.slice(1));
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Room {
     name: string;
@@ -49,7 +60,27 @@ interface AllDataResponse {
     timestamp: string;
 }
 
+interface DateStrings {
+    day: number;
+    monthLower: string;
+    monthUpper: string;
+    monthCap: string;
+    dayOfWeek: number;
+    dayLower: string;
+    dayCap: string;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
 const prevTemps: Record<string, number | null> = { ute: null, inne: null };
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+function escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
 function getTrend(current: number, previous: number | null): string {
     if (previous === null) return '';
@@ -59,33 +90,10 @@ function getTrend(current: number, previous: number | null): string {
     return '→';
 }
 
-function renderRoomChart(rooms: Room[]): void {
-    const container = document.getElementById('room-chart');
-    if (!container) return;
-    if (!rooms || rooms.length === 0) {
-        container.innerHTML = '';
-        return;
-    }
-
-    const rows = rooms.map(room => {
-        const val = Math.round(room.temp);
-        const label = room.name.toUpperCase();
-        return `<div class="room-row"><span class="room-name">${escapeHtml(label)}</span><span class="room-temp">${val}°</span></div>`;
-    });
-
-    container.innerHTML = rows.join('');
-}
-
-function escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 function parseDate(dateStr: string | null | undefined): Date | null {
     if (!dateStr) return null;
     const str = String(dateStr).trim();
-    
+
     const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?/);
     if (isoMatch) {
         const [, year, month, day, hour = '0', minute = '0', second = '0'] = isoMatch;
@@ -98,18 +106,16 @@ function parseDate(dateStr: string | null | undefined): Date | null {
             parseInt(second)
         );
     }
-    
+
     const date = new Date(str);
     return isNaN(date.getTime()) ? null : date;
 }
 
 function isSameDay(a: Date | null, b: Date | null): boolean {
     if (!a || !b || isNaN(a.getTime()) || isNaN(b.getTime())) return false;
-    
-    const aDate = new Date(a.getFullYear(), a.getMonth(), a.getDate());
-    const bDate = new Date(b.getFullYear(), b.getMonth(), b.getDate());
-    
-    return aDate.getTime() === bDate.getTime();
+    return a.getFullYear() === b.getFullYear()
+        && a.getMonth()    === b.getMonth()
+        && a.getDate()     === b.getDate();
 }
 
 function formatTime(datetimeStr: string): string {
@@ -120,109 +126,63 @@ function formatTime(datetimeStr: string): string {
     return `${h}:${m}`;
 }
 
-function updateDate(): void {
-    const now = new Date();
-    const dayEl = document.getElementById('date-day');
-    const monthEl = document.getElementById('date-month');
-    if (dayEl) dayEl.textContent = String(now.getDate());
-    if (monthEl) monthEl.textContent = MONTHS_SV[now.getMonth()];
+/** Returns locale strings for a given date, used by lunch matching. */
+function getDateStrings(date: Date): DateStrings {
+    const dayOfWeek = date.getDay();
+    const month     = date.getMonth();
+    return {
+        day:        date.getDate(),
+        monthLower: MONTHS_LOWER[month],
+        monthUpper: MONTHS_UPPER[month],
+        monthCap:   MONTHS_CAP[month],
+        dayOfWeek,
+        dayLower:   DAYS_LOWER[dayOfWeek],
+        dayCap:     DAYS_CAP[dayOfWeek],
+    };
 }
 
-function updateTemperature(weather: WeatherData | null, indoor: IndoorData | null): void {
-    if (weather) {
-        const current = weather.outdoor?.current ?? weather.temperature;
-        if (current !== undefined) {
-            const rounded = Math.round(current);
-            const trend = getTrend(rounded, prevTemps.ute);
-            prevTemps.ute = rounded;
-            const uteTempEl = document.getElementById('ute-temp-val');
-            const uteTrendEl = document.getElementById('ute-trend');
-            if (uteTempEl) uteTempEl.textContent = String(rounded);
-            if (uteTrendEl) uteTrendEl.textContent = trend;
-        }
-        const forecast = weather.outdoor?.forecast || [];
-        for (let i = 0; i < 3; i++) {
-            const el = document.getElementById(`forecast-${i}`);
-            if (el) {
-                el.textContent = forecast[i] !== undefined && forecast[i].temp !== undefined
-                    ? Math.round(forecast[i].temp) + '°'
-                    : '--°';
-            }
-        }
-    }
+/** Finds the lunch entry for today, falling back to the first item. */
+function findTodaysMenu(data: LunchItem[], date: Date): LunchItem | undefined {
+    const { day, monthLower, monthCap, monthUpper, dayLower, dayCap } = getDateStrings(date);
 
-    if (indoor) {
-        const current = indoor.current;
-        if (current !== undefined) {
-            const rounded = Math.round(current);
-            const trend = getTrend(rounded, prevTemps.inne);
-            prevTemps.inne = rounded;
-            const inneTempEl = document.getElementById('inne-temp-val');
-            const inneTrendEl = document.getElementById('inne-trend');
-            if (inneTempEl) inneTempEl.textContent = String(rounded);
-            if (inneTrendEl) inneTrendEl.textContent = trend;
-        }
-        renderRoomChart(indoor.rooms || []);
-    }
-}
-
-function updateSchoolLunch(data: LunchItem[] | null): void {
-    const container = document.getElementById('lunch-content');
-    if (!container) return;
-
-    if (!data || !Array.isArray(data) || data.length === 0) {
-        container.innerHTML = '<p class="no-data">Ingen lunchdata</p>';
-        return;
-    }
-
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-        container.innerHTML = '<p class="no-data">Ingen lunch idag</p>';
-        return;
-    }
-
-    const todayDay = now.getDate();
-    const todayMonth = now.getMonth();
-    
-    const monthNames = [
-        'januari', 'februari', 'mars', 'april', 'maj', 'juni',
-        'juli', 'augusti', 'september', 'oktober', 'november', 'december'
-    ];
-    
-    const monthNameLower = monthNames[todayMonth];
-    const monthNameUpper = monthNameLower.toUpperCase();
-    const monthNameCapitalized = monthNameLower.charAt(0).toUpperCase() + monthNameLower.slice(1);
-    
-    const dayNames = ['söndag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag'];
-    const dayNameLower = dayNames[dayOfWeek];
-    const dayNameCapitalized = dayNameLower.charAt(0).toUpperCase() + dayNameLower.slice(1);
-
-    const menu = data.find(m => {
+    return data.find(m => {
         const datum = (m.datum || '').toLowerCase();
-        
-        const containsDay = new RegExp(`\\b${todayDay}\\b`).test(datum);
-        const containsMonth = datum.includes(monthNameLower) || 
-                             datum.includes(monthNameCapitalized) || 
-                             datum.includes(monthNameUpper);
-        
-        const containsWeekday = datum.includes(dayNameLower) || 
-                               datum.includes(dayNameCapitalized);
-        
+        const containsDay      = new RegExp(`\\b${day}\\b`).test(datum);
+        const containsMonth    = datum.includes(monthLower)
+                              || datum.includes(monthCap.toLowerCase())
+                              || datum.includes(monthUpper.toLowerCase());
+        const containsWeekday  = datum.includes(dayLower)
+                              || datum.includes(dayCap.toLowerCase());
         return (containsDay && containsMonth) || containsWeekday;
-    }) || data[0];
+    }) ?? data[0];
+}
 
-    if (!menu) {
-        container.innerHTML = '<p class="no-data">Ingen lunch idag</p>';
+/**
+ * The calendar API may return either a CalendarData object or a single-element
+ * array wrapping one. Normalise both shapes to CalendarData | null.
+ */
+function normalizeCalendarData(raw: CalendarData | CalendarData[] | null): CalendarData | null {
+    if (!raw) return null;
+    if (Array.isArray(raw)) {
+        return raw.length > 0 && raw[0].events ? raw[0] : null;
+    }
+    return raw.events ? raw : null;
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────────
+
+function renderRoomChart(rooms: Room[]): void {
+    const container = document.getElementById('room-chart');
+    if (!container) return;
+    if (!rooms || rooms.length === 0) {
+        container.innerHTML = '';
         return;
     }
-
-    const dayLabel = `<div class="lunch-day-name">${escapeHtml(dayNameCapitalized)}</div>`;
-    const mealsHtml = (menu.meny || [])
-        .map(meal => `<div class="lunch-meal">${escapeHtml(meal)}</div>`)
-        .join('');
-
-    container.innerHTML = dayLabel + (mealsHtml || '<p class="no-data">Ingen lunch idag</p>');
+    container.innerHTML = rooms.map(room => {
+        const val   = Math.round(room.temp);
+        const label = room.name.toUpperCase();
+        return `<div class="room-row"><span class="room-name">${escapeHtml(label)}</span><span class="room-temp">${val}°</span></div>`;
+    }).join('');
 }
 
 function renderCalendarEvents(events: CalendarEvent[], containerId: string): void {
@@ -234,29 +194,108 @@ function renderCalendarEvents(events: CalendarEvent[], containerId: string): voi
         return;
     }
 
-    const html = events.map(event => {
-        const time = formatTime(event.datetime || event.date || '');
-        const title = escapeHtml(event.summary || event.title || '');
+    container.innerHTML = events.map(event => {
+        const time    = formatTime(event.datetime || event.date || '');
+        const title   = escapeHtml(event.summary || event.title || '');
         const timeHtml = time
             ? `<span class="cal-time">${time}</span>`
             : `<span class="cal-time"></span>`;
         return `<div class="cal-event">${timeHtml}<span class="cal-title">${title}</span></div>`;
     }).join('');
+}
 
-    container.innerHTML = html;
+// ── Update functions ──────────────────────────────────────────────────────────
+
+function updateDate(): void {
+    const now     = new Date();
+    const dayEl   = document.getElementById('date-day');
+    const monthEl = document.getElementById('date-month');
+    if (dayEl)   dayEl.textContent   = String(now.getDate());
+    if (monthEl) monthEl.textContent = MONTHS_UPPER[now.getMonth()];
+}
+
+function updateOutdoorWeather(weather: WeatherData): void {
+    const current = weather.outdoor?.current ?? weather.temperature;
+    if (current !== undefined) {
+        const rounded    = Math.round(current);
+        const trend      = getTrend(rounded, prevTemps.ute);
+        prevTemps.ute    = rounded;
+        const uteTempEl  = document.getElementById('ute-temp-val');
+        const uteTrendEl = document.getElementById('ute-trend');
+        if (uteTempEl)  uteTempEl.textContent  = String(rounded);
+        if (uteTrendEl) uteTrendEl.textContent = trend;
+    }
+
+    const forecast = weather.outdoor?.forecast ?? [];
+    for (let i = 0; i < 3; i++) {
+        const el = document.getElementById(`forecast-${i}`);
+        if (el) {
+            el.textContent = forecast[i]?.temp !== undefined
+                ? Math.round(forecast[i].temp) + '°'
+                : '--°';
+        }
+    }
+}
+
+function updateIndoorTemperature(indoor: IndoorData): void {
+    if (indoor.current !== undefined) {
+        const rounded     = Math.round(indoor.current);
+        const trend       = getTrend(rounded, prevTemps.inne);
+        prevTemps.inne    = rounded;
+        const inneTempEl  = document.getElementById('inne-temp-val');
+        const inneTrendEl = document.getElementById('inne-trend');
+        if (inneTempEl)  inneTempEl.textContent  = String(rounded);
+        if (inneTrendEl) inneTrendEl.textContent = trend;
+    }
+    renderRoomChart(indoor.rooms ?? []);
+}
+
+function updateTemperature(weather: WeatherData | null, indoor: IndoorData | null): void {
+    if (weather) updateOutdoorWeather(weather);
+    if (indoor)  updateIndoorTemperature(indoor);
+}
+
+function updateSchoolLunch(data: LunchItem[] | null): void {
+    const container = document.getElementById('lunch-content');
+    if (!container) return;
+
+    if (!data || !Array.isArray(data) || data.length === 0) {
+        container.innerHTML = '<p class="no-data">Ingen lunchdata</p>';
+        return;
+    }
+
+    const now       = new Date();
+    const dayOfWeek = now.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+        container.innerHTML = '<p class="no-data">Ingen lunch idag</p>';
+        return;
+    }
+
+    const { dayCap } = getDateStrings(now);
+    const menu = findTodaysMenu(data, now);
+
+    if (!menu) {
+        container.innerHTML = '<p class="no-data">Ingen lunch idag</p>';
+        return;
+    }
+
+    const dayLabel = `<div class="lunch-day-name">${escapeHtml(dayCap)}</div>`;
+    const mealsHtml = (menu.meny ?? [])
+        .map(meal => `<div class="lunch-meal">${escapeHtml(meal)}</div>`)
+        .join('');
+
+    container.innerHTML = dayLabel + (mealsHtml || '<p class="no-data">Ingen lunch idag</p>');
 }
 
 function updateCalendar(data: CalendarData | null): void {
-    if (Array.isArray(data) && data.length > 0 && (data[0] as CalendarData).events) {
-        data = data[0] as CalendarData;
-    }
-    if (!data || !data.events) {
+    const normalized = normalizeCalendarData(data);
+    if (!normalized) {
         renderCalendarEvents([], 'cal-today');
         renderCalendarEvents([], 'cal-tomorrow');
         return;
     }
 
-    const today = new Date();
+    const today    = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -267,71 +306,73 @@ function updateCalendar(data: CalendarData | null): void {
         return (da?.getTime() ?? 0) - (db?.getTime() ?? 0);
     };
 
-    const todayEvents = data.events.filter(e => {
-        const d = parseDate(e.datetime || e.date || '');
-        return isSameDay(d, today);
-    }).sort(sortByDate);
+    const todayEvents    = normalized.events.filter(e => isSameDay(parseDate(e.datetime || e.date || ''), today)).sort(sortByDate);
+    const tomorrowEvents = normalized.events.filter(e => isSameDay(parseDate(e.datetime || e.date || ''), tomorrow)).sort(sortByDate);
 
-    const tomorrowEvents = data.events.filter(e => {
-        const d = parseDate(e.datetime || e.date || '');
-        return isSameDay(d, tomorrow);
-    }).sort(sortByDate);
-
-    renderCalendarEvents(todayEvents, 'cal-today');
+    renderCalendarEvents(todayEvents,    'cal-today');
     renderCalendarEvents(tomorrowEvents, 'cal-tomorrow');
 }
+
+// ── Mock data ─────────────────────────────────────────────────────────────────
 
 function generateMockData(): void {
     updateTemperature(
         {
             outdoor: {
                 current: 9,
-                forecast: [{ temp: 12 }, { temp: 8 }, { temp: 6 }]
-            }
+                forecast: [{ temp: 12 }, { temp: 8 }, { temp: 6 }],
+            },
         },
         {
             current: 20,
             rooms: [
-                { name: 'KÖK', temp: 21 },
+                { name: 'KÖK',   temp: 21 },
                 { name: 'V-RUM', temp: 22 },
-                { name: 'S-RUM', temp: 20 }
-            ]
+                { name: 'S-RUM', temp: 20 },
+            ],
         }
     );
 
-    const mockToday = new Date();
+    const mockToday    = new Date();
     const mockTomorrow = new Date(mockToday);
     mockTomorrow.setDate(mockTomorrow.getDate() + 1);
-    const DAY_NAMES_CAP = ['Söndag','Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag'];
-    const MONTH_NAMES_CAP = ['Januari','Februari','Mars','April','Maj','Juni','Juli','Augusti','September','Oktober','November','December'];
-    const todayDatum = `${DAY_NAMES_CAP[mockToday.getDay()]} ${mockToday.getDate()} ${MONTH_NAMES_CAP[mockToday.getMonth()]}`;
-    const tomorrowDatum = `${DAY_NAMES_CAP[mockTomorrow.getDay()]} ${mockTomorrow.getDate()} ${MONTH_NAMES_CAP[mockTomorrow.getMonth()]}`;
+
+    const todayStrings    = getDateStrings(mockToday);
+    const tomorrowStrings = getDateStrings(mockTomorrow);
+
+    const todayDatum    = `${todayStrings.dayCap} ${todayStrings.day} ${todayStrings.monthCap}`;
+    const tomorrowDatum = `${tomorrowStrings.dayCap} ${tomorrowStrings.day} ${tomorrowStrings.monthCap}`;
 
     updateSchoolLunch([
         {
             datum: todayDatum,
-            meny: ['Klimatsmartvecka: Chilipanna med ris', 'Falafelbiff med ris', 'Salladsbuffe']
+            meny: ['Klimatsmartvecka: Chilipanna med ris', 'Falafelbiff med ris', 'Salladsbuffe'],
         },
         {
             datum: tomorrowDatum,
-            meny: ['Västkustfisk med potatismos', 'Blomkålssoppa', 'Salladsbuffe']
-        }
+            meny: ['Västkustfisk med potatismos', 'Blomkålssoppa', 'Salladsbuffe'],
+        },
     ]);
 
-    const today = new Date();
+    const today    = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const d = (base: Date, h: number, m: number): string =>
+        new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m).toISOString();
+
     updateCalendar({
         events: [
-            { datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 8, 0).toISOString(), summary: 'Soptömning' },
-            { datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 17, 0).toISOString(), summary: 'Falukorv & mos' },
-            { datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 18, 30).toISOString(), summary: 'Makerspace' },
-            { datetime: new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 7, 0).toISOString(), summary: 'Lämna bilen' },
-            { datetime: new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 17, 0).toISOString(), summary: 'Kvällsmat' }
-        ]
+            { datetime: d(today,    8,  0), summary: 'Soptömning'   },
+            { datetime: d(today,   17,  0), summary: 'Falukorv & mos' },
+            { datetime: d(today,   18, 30), summary: 'Makerspace'   },
+            { datetime: d(tomorrow, 7,  0), summary: 'Lämna bilen'  },
+            { datetime: d(tomorrow,17,  0), summary: 'Kvällsmat'    },
+        ],
     });
 }
+
+// ── Initialisation ────────────────────────────────────────────────────────────
 
 function markDataLoaded(): void {
     document.body.dataset.loaded = 'true';
@@ -346,6 +387,7 @@ async function fetchData(): Promise<void> {
             markDataLoaded();
             return;
         }
+
         const data: AllDataResponse = await response.json();
 
         if (!data.weather && !data.indoor && !data.lunch && !data.calendar) {

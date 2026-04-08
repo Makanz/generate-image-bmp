@@ -32,6 +32,10 @@ jest.mock('../src/services/image-processing', () => ({
     extractRegion: jest.fn().mockResolvedValue(Buffer.from('BM'))
 }));
 
+jest.mock('../src/utils/output-manifest', () => ({
+    resolvePublishedImagePath: jest.fn().mockResolvedValue(null)
+}));
+
 describe('isQuietHours()', () => {
     let isQuietHours;
 
@@ -171,8 +175,17 @@ describe('frontend asset serving helpers', () => {
 describe('server - API endpoints', () => {
     let app;
     let server;
+    let tempDir;
+    let currentBmpPath;
+    let previousBmpPath;
 
     beforeAll(() => {
+        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'server-images-'));
+        currentBmpPath = path.join(tempDir, 'dashboard-current.bmp');
+        previousBmpPath = path.join(tempDir, 'dashboard-previous.bmp');
+        fs.writeFileSync(currentBmpPath, 'BM');
+        fs.writeFileSync(previousBmpPath, 'BM');
+
         process.env.PORT = '0';
         delete process.env.REFRESH_INTERVAL_MINUTES;
         delete process.env.N8N_WEBHOOK_WEATHER;
@@ -181,6 +194,16 @@ describe('server - API endpoints', () => {
         delete process.env.N8N_WEBHOOK_INDOOR;
 
         jest.useFakeTimers();
+        const { resolvePublishedImagePath } = require('../src/utils/output-manifest');
+        resolvePublishedImagePath.mockImplementation(async (_outputDir, which) => {
+            if (which === 'current') {
+                return currentBmpPath;
+            }
+            if (which === 'previous') {
+                return previousBmpPath;
+            }
+            return null;
+        });
         const mod = require('../server');
         app = mod.app;
         server = mod.server;
@@ -188,6 +211,7 @@ describe('server - API endpoints', () => {
 
     afterAll((done) => {
         jest.useRealTimers();
+        fs.rmSync(tempDir, { recursive: true, force: true });
         server.close(done);
     });
 
@@ -271,11 +295,35 @@ describe('server - API endpoints', () => {
             expect(res.status).toBe(404);
         });
 
-        test('allows dashboard.bmp (allowlisted)', async () => {
-            // File may not exist in test env, so 404 from sendFile is acceptable — not a 403/allowlist block
+        test('serves dashboard.bmp through the current manifest alias', async () => {
             const res = await request(app).get('/output/dashboard.bmp');
-            expect(res.status).not.toBe(403);
-            expect(res.body.error).not.toBe('File not found');
+            expect(res.status).toBe(200);
+        });
+
+        test('serves dashboard.previous.bmp through the previous manifest alias', async () => {
+            const res = await request(app).get('/output/dashboard.previous.bmp');
+            expect(res.status).toBe(200);
+        });
+    });
+
+    describe('GET /dashboard.bmp and /dashboard.previous.bmp', () => {
+        test('serves the current published image', async () => {
+            const res = await request(app).get('/dashboard.bmp');
+            expect(res.status).toBe(200);
+        });
+
+        test('returns 404 before the first image has been published', async () => {
+            const { resolvePublishedImagePath } = require('../src/utils/output-manifest');
+            resolvePublishedImagePath.mockResolvedValueOnce(null);
+
+            const res = await request(app).get('/dashboard.bmp');
+            expect(res.status).toBe(404);
+            expect(res.body).toHaveProperty('error', 'Image not generated yet');
+        });
+
+        test('serves the previous published image', async () => {
+            const res = await request(app).get('/dashboard.previous.bmp');
+            expect(res.status).toBe(200);
         });
     });
 
@@ -293,9 +341,11 @@ describe('server - API endpoints', () => {
         });
 
         test('returns BMP buffer with valid params', async () => {
+            const { extractRegion } = require('../src/services/image-processing');
             const res = await request(app).get('/api/image-region?x=0&y=0&w=100&h=50');
             expect(res.status).toBe(200);
             expect(res.headers['content-type']).toMatch(/image\/bmp/);
+            expect(extractRegion).toHaveBeenCalledWith(currentBmpPath, 0, 0, 100, 50);
         });
     });
 });

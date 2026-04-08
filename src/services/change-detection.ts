@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { processToGreyscale } from './image-processing';
 import { WIDTH, HEIGHT, MERGE_DISTANCE } from '../utils/constants';
+import { resolvePublishedImagePath } from '../utils/output-manifest';
 
 export interface ChangeRegion {
     x: number;
@@ -154,24 +155,24 @@ export function mergeRegions(regions: ChangeRegion[], distance: number): ChangeR
 }
 
 export async function getChanges(outputDir: string): Promise<ChangesResult> {
-    const currentPath = path.join(outputDir, 'dashboard.bmp');
-    const previousPath = path.join(outputDir, 'dashboard.previous.bmp');
+    const currentPath = await resolvePublishedImagePath(outputDir, 'current');
+    const previousPath = await resolvePublishedImagePath(outputDir, 'previous');
 
-    const currentExists = await fileExists(currentPath);
-    const previousExists = await fileExists(previousPath);
+    const currentExists = currentPath ? await fileExists(currentPath) : false;
+    const previousExists = previousPath ? await fileExists(previousPath) : false;
 
     if (!currentExists) {
         return { changes: [], currentChecksum: null, previousChecksum: null, timestamp: new Date().toISOString() };
     }
 
-    const currentChecksum = await computeChecksum(currentPath);
-    const previousChecksum = previousExists ? await computeChecksum(previousPath) : null;
+    const currentChecksum = await computeChecksum(currentPath as string);
+    const previousChecksum = previousExists ? await computeChecksum(previousPath as string) : null;
 
     if (!previousExists) {
         return { changes: [], currentChecksum, previousChecksum, timestamp: new Date().toISOString() };
     }
 
-    const changes = await detectChanges(currentPath, previousPath);
+    const changes = await detectChanges(currentPath as string, previousPath as string);
 
     return {
         changes,

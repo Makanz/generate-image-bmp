@@ -35,7 +35,7 @@ Dashboard app that generates BMP images (800x480) with weather, calendar, and lu
 ## Installation
 
 ```bash
-npm install
+pnpm install
 ```
 
 ## Configuration
@@ -95,25 +95,27 @@ Create an n8n workflow with:
 ## Local Development
 
 ```bash
-npm run dev          # Start Vite dev server for dashboard-web
+pnpm run dev         # Start Vite dev server for dashboard-web
 ```
 
 ```bash
-npm run start        # Start Express server (TypeScript)
+pnpm start           # Start Express server (TypeScript)
 ```
 
 ```bash
-npm run generate     # Generate image manually (standalone, no server required)
+pnpm run generate    # Generate image manually (standalone, no server required)
 ```
 
 ```bash
-npm run build        # Build TypeScript + production frontend
-npm run preview      # Preview production build
+pnpm run build       # Build TypeScript + production frontend
+pnpm run preview     # Preview production build
 ```
 
 ```bash
-npm test             # Run tests with Jest
+pnpm test            # Run tests with Jest
 ```
+
+After `pnpm run build`, the server serves the built frontend bundle from `dashboard-web/dist`. If that build output is missing, it falls back to serving the source files from `dashboard-web` for local development.
 
 ## Docker
 

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
+import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
 import { extractRegion } from './src/services/image-processing';
@@ -17,9 +18,42 @@ const APP_ROOT = getAppRoot();
 const WEATHER_ENSURE_RETRIES = 3;
 const WEATHER_ENSURE_DELAY_MS = 3000;
 const ALLOWED_OUTPUT_FILES = ['dashboard.bmp', 'dashboard.previous.bmp'];
+const FRONTEND_ROOT = resolveFrontendRoot(APP_ROOT);
 
 async function sleep(ms: number): Promise<void> {
     return new Promise(r => setTimeout(r, ms));
+}
+
+export function resolveFrontendRoot(appRoot: string): string {
+    const builtRoot = path.join(appRoot, 'dashboard-web', 'dist');
+    if (fs.existsSync(path.join(builtRoot, 'index.html'))) {
+        return builtRoot;
+    }
+
+    return path.join(appRoot, 'dashboard-web');
+}
+
+export function setFrontendCacheHeaders(
+    res: Response,
+    frontendRoot: string,
+    filePath: string
+): void {
+    const isBuiltFrontend =
+        path.basename(frontendRoot) === 'dist'
+        && path.basename(path.dirname(frontendRoot)) === 'dashboard-web';
+
+    if (!isBuiltFrontend) {
+        return;
+    }
+
+    if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache');
+        return;
+    }
+
+    if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
 }
 
 async function generateImageWhenReady(forceRefresh = false): Promise<void> {
@@ -49,7 +83,16 @@ function withErrorHandling(context: string, handler: (req: Request, res: Respons
     };
 }
 
-app.use(express.static(path.join(APP_ROOT, 'dashboard-web')));
+app.get('/', (_req: Request, res: Response) => {
+    setFrontendCacheHeaders(res, FRONTEND_ROOT, path.join(FRONTEND_ROOT, 'index.html'));
+    res.sendFile(path.join(FRONTEND_ROOT, 'index.html'));
+});
+
+app.use(express.static(FRONTEND_ROOT, {
+    setHeaders: (res, filePath) => {
+        setFrontendCacheHeaders(res, FRONTEND_ROOT, filePath);
+    }
+}));
 
 app.get('/api/data', withErrorHandling('Error fetching data', async (_req, res) => {
     const data = await fetchAllData();

@@ -1,4 +1,7 @@
 const request = require('supertest');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 jest.mock('dotenv/config', () => ({}));
 jest.mock('node-cron', () => ({ schedule: jest.fn() }));
@@ -101,6 +104,70 @@ describe('isQuietHours()', () => {
     });
 });
 
+describe('frontend asset serving helpers', () => {
+    let resolveFrontendRoot;
+    let setFrontendCacheHeaders;
+    let tempRoot;
+
+    beforeAll(() => {
+        const serverModule = require('../server');
+        resolveFrontendRoot = serverModule.resolveFrontendRoot;
+        setFrontendCacheHeaders = serverModule.setFrontendCacheHeaders;
+    });
+
+    beforeEach(() => {
+        tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'frontend-root-'));
+        fs.mkdirSync(path.join(tempRoot, 'dashboard-web'), { recursive: true });
+        fs.writeFileSync(path.join(tempRoot, 'dashboard-web', 'index.html'), '<!doctype html><title>Source</title>');
+    });
+
+    afterEach(() => {
+        fs.rmSync(tempRoot, { recursive: true, force: true });
+    });
+
+    test('prefers the built frontend when dashboard-web/dist/index.html exists', () => {
+        const builtRoot = path.join(tempRoot, 'dashboard-web', 'dist');
+        fs.mkdirSync(builtRoot, { recursive: true });
+        fs.writeFileSync(path.join(builtRoot, 'index.html'), '<!doctype html><title>Built</title>');
+
+        expect(resolveFrontendRoot(tempRoot)).toBe(builtRoot);
+    });
+
+    test('falls back to dashboard-web when no built index exists', () => {
+        expect(resolveFrontendRoot(tempRoot)).toBe(path.join(tempRoot, 'dashboard-web'));
+    });
+
+    test('uses immutable cache headers for built js and css assets', () => {
+        const headers = new Map();
+        const builtRoot = path.join(tempRoot, 'dashboard-web', 'dist');
+        const res = {
+            setHeader: (key, value) => headers.set(key, value)
+        };
+
+        setFrontendCacheHeaders(res, builtRoot, path.join(builtRoot, 'assets', 'index.js'));
+        expect(headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+
+        headers.clear();
+        setFrontendCacheHeaders(res, builtRoot, path.join(builtRoot, 'assets', 'index.css'));
+        expect(headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+    });
+
+    test('uses no-cache for built html files only', () => {
+        const headers = new Map();
+        const builtRoot = path.join(tempRoot, 'dashboard-web', 'dist');
+        const res = {
+            setHeader: (key, value) => headers.set(key, value)
+        };
+
+        setFrontendCacheHeaders(res, builtRoot, path.join(builtRoot, 'index.html'));
+        expect(headers.get('Cache-Control')).toBe('no-cache');
+
+        headers.clear();
+        setFrontendCacheHeaders(res, path.join(tempRoot, 'dashboard-web'), path.join(tempRoot, 'dashboard-web', 'script.ts'));
+        expect(headers.has('Cache-Control')).toBe(false);
+    });
+});
+
 describe('server - API endpoints', () => {
     let app;
     let server;
@@ -142,6 +209,14 @@ describe('server - API endpoints', () => {
             const res = await request(app).get('/api/data');
             expect(res.status).toBe(500);
             expect(res.body).toHaveProperty('error', 'Internal server error');
+        });
+    });
+
+    describe('GET /', () => {
+        test('returns the dashboard html', async () => {
+            const res = await request(app).get('/');
+            expect(res.status).toBe(200);
+            expect(res.text).toContain('<title>Dashboard</title>');
         });
     });
 

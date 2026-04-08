@@ -5,6 +5,7 @@ import { writeBmp } from './src/image/bmp-writer';
 import { createScreenshotProvider } from './src/services/screenshot';
 import { getChanges as getChangesImpl, mergeRegions as mergeRegionsImpl, detectChanges as detectChangesImpl, computeChecksum as computeChecksumImpl, ChangeRegion, ChangesResult } from './src/services/change-detection';
 import { WIDTH, HEIGHT, GREYSCALE_THRESHOLD } from './src/utils/constants';
+import { createSnapshotFilename, publishSnapshot, pruneSnapshotFiles } from './src/utils/output-manifest';
 import { getAppRoot } from './src/utils/path';
 
 const APP_ROOT = getAppRoot();
@@ -28,18 +29,11 @@ export function getInFlightGeneration(): Promise<{ bmp: string }> | null {
 }
 
 async function _generateImage(options: GenerateImageOptions = {}): Promise<{ bmp: string }> {
-    const {
-        outputBmp = path.join(OUTPUT_DIR, 'dashboard.bmp')
-    } = options;
+    const outputDir = options.outputBmp
+        ? path.dirname(path.resolve(options.outputBmp))
+        : OUTPUT_DIR;
 
-    await fs.mkdir(OUTPUT_DIR, { recursive: true });
-
-    const previousBmp = path.join(OUTPUT_DIR, 'dashboard.previous.bmp');
-    const currentBmpExists = await fileExists(outputBmp);
-    if (currentBmpExists) {
-        await fs.copyFile(outputBmp, previousBmp);
-        console.log(`[capture] Previous image saved: ${previousBmp}`);
-    }
+    await fs.mkdir(outputDir, { recursive: true });
 
     const url = process.env.CAPTURE_URL || `${BASE_URL}/`;
     console.log(`[capture] Capturing ${url}...`);
@@ -55,11 +49,33 @@ async function _generateImage(options: GenerateImageOptions = {}): Promise<{ bmp
         .raw()
         .toBuffer({ resolveWithObject: true });
 
-    await writeBmp(greyscaleResult.info.width, greyscaleResult.info.height, greyscaleResult.data, outputBmp);
+    const generatedAt = new Date().toISOString();
+    const snapshotBmp = path.join(outputDir, createSnapshotFilename(generatedAt));
+    await writeBmp(greyscaleResult.info.width, greyscaleResult.info.height, greyscaleResult.data, snapshotBmp);
 
-    console.log(`[capture] BMP saved: ${outputBmp}`);
+    const checksum = await computeChecksum(snapshotBmp);
+    if (checksum === null) {
+        throw new Error(`[capture] Failed to checksum generated BMP: ${snapshotBmp}`);
+    }
 
-    return { bmp: outputBmp };
+    const manifest = await publishSnapshot(outputDir, {
+        file: path.basename(snapshotBmp),
+        generatedAt,
+        checksum
+    });
+
+    const keepFiles = new Set<string>();
+    if (manifest.current) {
+        keepFiles.add(manifest.current.file);
+    }
+    if (manifest.previous) {
+        keepFiles.add(manifest.previous.file);
+    }
+    await pruneSnapshotFiles(outputDir, keepFiles);
+
+    console.log(`[capture] BMP snapshot published: ${snapshotBmp}`);
+
+    return { bmp: snapshotBmp };
 }
 
 async function generateImage(options: GenerateImageOptions = {}): Promise<{ bmp: string }> {
@@ -94,14 +110,10 @@ async function computeChecksum(filePath: string): Promise<string | null> {
     return computeChecksumImpl(filePath);
 }
 
-async function fileExists(filePath: string): Promise<boolean> {
-    return fs.access(filePath).then(() => true).catch(() => false);
-}
-
 async function main(): Promise<void> {
     console.log('Generating dashboard image...');
-    await generateImage();
-    console.log('Done: output/dashboard.bmp');
+    const result = await generateImage();
+    console.log(`Done: published ${path.basename(result.bmp)}`);
 }
 
 if (require.main === module) {

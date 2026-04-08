@@ -7,6 +7,7 @@ import { extractRegion } from './src/services/image-processing';
 import { generateImage, getChanges } from './capture';
 import { fetchAllData, fetchAllDataFresh, fetchWeatherFresh, restoreCache } from './src/services/data';
 import { handleApiError } from './src/utils/errors';
+import { resolvePublishedImagePath } from './src/utils/output-manifest';
 import { getAppRoot } from './src/utils/path';
 import { SERVER_STARTUP_DELAY_MS } from './src/utils/constants';
 
@@ -14,11 +15,17 @@ const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const REFRESH_INTERVAL = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '15', 10);
 const APP_ROOT = getAppRoot();
+const OUTPUT_DIR = path.join(APP_ROOT, 'output');
 
 const WEATHER_ENSURE_RETRIES = 3;
 const WEATHER_ENSURE_DELAY_MS = 3000;
-const ALLOWED_OUTPUT_FILES = ['dashboard.bmp', 'dashboard.previous.bmp'];
+const ALLOWED_OUTPUT_FILES = ['dashboard.bmp', 'dashboard.previous.bmp'] as const;
 const FRONTEND_ROOT = resolveFrontendRoot(APP_ROOT);
+type PublishedImageAlias = typeof ALLOWED_OUTPUT_FILES[number];
+const PUBLISHED_IMAGE_ALIAS_MAP: Record<PublishedImageAlias, 'current' | 'previous'> = {
+    'dashboard.bmp': 'current',
+    'dashboard.previous.bmp': 'previous'
+};
 
 async function sleep(ms: number): Promise<void> {
     return new Promise(r => setTimeout(r, ms));
@@ -83,6 +90,20 @@ function withErrorHandling(context: string, handler: (req: Request, res: Respons
     };
 }
 
+async function resolvePublishedAliasPath(alias: PublishedImageAlias): Promise<string | null> {
+    return resolvePublishedImagePath(OUTPUT_DIR, PUBLISHED_IMAGE_ALIAS_MAP[alias]);
+}
+
+async function sendPublishedImage(res: Response, alias: PublishedImageAlias): Promise<void> {
+    const imagePath = await resolvePublishedAliasPath(alias);
+    if (!imagePath) {
+        res.status(404).json({ error: 'Image not generated yet' });
+        return;
+    }
+
+    res.sendFile(imagePath);
+}
+
 app.get('/', (_req: Request, res: Response) => {
     setFrontendCacheHeaders(res, FRONTEND_ROOT, path.join(FRONTEND_ROOT, 'index.html'));
     res.sendFile(path.join(FRONTEND_ROOT, 'index.html'));
@@ -99,20 +120,20 @@ app.get('/api/data', withErrorHandling('Error fetching data', async (_req, res) 
     res.json(data);
 }));
 
-app.get('/output/:filename', (_req: Request, res: Response) => {
+app.get('/output/:filename', async (_req: Request, res: Response) => {
     const filename = Array.isArray(_req.params.filename) ? _req.params.filename[0] : _req.params.filename;
-    if (!ALLOWED_OUTPUT_FILES.includes(filename)) {
+    if (!ALLOWED_OUTPUT_FILES.includes(filename as PublishedImageAlias)) {
         return res.status(404).json({ error: 'File not found' });
     }
-    res.sendFile(path.join(APP_ROOT, 'output', filename));
+    await sendPublishedImage(res, filename as PublishedImageAlias);
 });
 
-app.get('/dashboard.bmp', (_req: Request, res: Response) => {
-    res.sendFile(path.join(APP_ROOT, 'output', 'dashboard.bmp'));
+app.get('/dashboard.bmp', async (_req: Request, res: Response) => {
+    await sendPublishedImage(res, 'dashboard.bmp');
 });
 
-app.get('/dashboard.previous.bmp', (_req: Request, res: Response) => {
-    res.sendFile(path.join(APP_ROOT, 'output', 'dashboard.previous.bmp'));
+app.get('/dashboard.previous.bmp', async (_req: Request, res: Response) => {
+    await sendPublishedImage(res, 'dashboard.previous.bmp');
 });
 
 app.get('/api/changes', withErrorHandling('Error getting changes', async (_req, res) => {
@@ -123,7 +144,11 @@ app.get('/api/changes', withErrorHandling('Error getting changes', async (_req, 
 app.get('/api/image-region', withErrorHandling('Error getting image region', async (req, res) => {
     const { x, y, w, h } = req.query;
 
-    const imagePath = path.join(APP_ROOT, 'output', 'dashboard.bmp');
+    const imagePath = await resolvePublishedAliasPath('dashboard.bmp');
+    if (!imagePath) {
+        res.status(404).json({ error: 'Image not generated yet' });
+        return;
+    }
 
     const left = parseInt(x as string, 10) || 0;
     const top = parseInt(y as string, 10) || 0;

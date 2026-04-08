@@ -21,7 +21,12 @@ jest.mock('sharp', () => {
 });
 
 jest.mock('../src/image/bmp-writer', () => ({
-    writeBmp: jest.fn().mockResolvedValue(undefined)
+    writeBmp: jest.fn().mockImplementation(async (_width, _height, _pixelsGray, outputPath) => {
+        const fs = require('fs').promises;
+        const path = require('path');
+        await fs.mkdir(path.dirname(outputPath), { recursive: true });
+        await fs.writeFile(outputPath, Buffer.from('BM'));
+    })
 }));
 
 const { computeChecksum, mergeRegions, detectChanges } = require('../capture.ts');
@@ -238,47 +243,79 @@ describe('capture.js - concurrent generation guard', () => {
 
     test('concurrent calls coalesce into single generation', async () => {
         const { generateImage, getInFlightGeneration } = require('../capture.ts');
-        
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'capture-concurrent-'));
+
         expect(getInFlightGeneration()).toBeNull();
-        
-        const promise1 = generateImage({ outputBmp: 'output/test1.bmp' });
+
+        const promise1 = generateImage({ outputBmp: path.join(tempDir, 'dashboard.bmp') });
         expect(getInFlightGeneration()).not.toBeNull();
-        
-        const promise2 = generateImage({ outputBmp: 'output/test2.bmp' });
+
+        const promise2 = generateImage({ outputBmp: path.join(tempDir, 'dashboard.bmp') });
         expect(getInFlightGeneration()).not.toBeNull();
-        
-        await promise1;
-        
+
         expect(promise1).resolves.toEqual({ bmp: expect.any(String) });
         expect(promise2).resolves.toEqual({ bmp: expect.any(String) });
+
+        await promise1;
+        await fs.rm(tempDir, { recursive: true, force: true });
     });
 
     test('after generation completes, new call starts new generation', async () => {
         const { generateImage, getInFlightGeneration } = require('../capture.ts');
-        
-        const promise1 = generateImage({ outputBmp: 'output/test.bmp' });
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'capture-repeat-'));
+
+        const promise1 = generateImage({ outputBmp: path.join(tempDir, 'dashboard.bmp') });
         expect(getInFlightGeneration()).not.toBeNull();
         await promise1;
-        
+
         expect(getInFlightGeneration()).toBeNull();
-        
-        const promise2 = generateImage({ outputBmp: 'output/test.bmp' });
+
+        const promise2 = generateImage({ outputBmp: path.join(tempDir, 'dashboard.bmp') });
         expect(getInFlightGeneration()).not.toBeNull();
-        
+
         await promise2;
         expect(getInFlightGeneration()).toBeNull();
+        await fs.rm(tempDir, { recursive: true, force: true });
     });
 
     test('getInFlightGeneration() reflects generation state', async () => {
         const { generateImage, getInFlightGeneration } = require('../capture.ts');
-        
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'capture-state-'));
+
         expect(getInFlightGeneration()).toBeNull();
-        
-        const promise = generateImage({ outputBmp: 'output/test.bmp' });
+
+        const promise = generateImage({ outputBmp: path.join(tempDir, 'dashboard.bmp') });
         expect(getInFlightGeneration()).not.toBeNull();
-        
+
         await promise;
-        
+
         expect(getInFlightGeneration()).toBeNull();
+        await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    test('publishes snapshots through the manifest and rotates previous image', async () => {
+        const { generateImage } = require('../capture.ts');
+        const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'capture-manifest-'));
+        const manifestPath = path.join(tempDir, 'dashboard-manifest.json');
+        const outputBmp = path.join(tempDir, 'dashboard.bmp');
+
+        const first = await generateImage({ outputBmp });
+        const firstManifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
+
+        expect(path.basename(first.bmp)).toMatch(/^dashboard-.*\.bmp$/);
+        expect(firstManifest.current.file).toBe(path.basename(first.bmp));
+        expect(firstManifest.previous).toBeNull();
+
+        await new Promise((resolve) => setTimeout(resolve, 5));
+
+        const second = await generateImage({ outputBmp });
+        const secondManifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
+
+        expect(secondManifest.current.file).toBe(path.basename(second.bmp));
+        expect(secondManifest.previous.file).toBe(firstManifest.current.file);
+        await expect(fs.access(path.join(tempDir, secondManifest.current.file))).resolves.toBeUndefined();
+        await expect(fs.access(path.join(tempDir, secondManifest.previous.file))).resolves.toBeUndefined();
+
+        await fs.rm(tempDir, { recursive: true, force: true });
     });
 });

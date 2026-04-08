@@ -131,8 +131,12 @@ docker-compose up -d
 ### Image Generation
 
 Images are saved to `output/`:
-- `output/dashboard.bmp` - 1-bit monochrome BMP for ESP32
-- `output/dashboard.previous.bmp` - Previous BMP (for diff)
+- `output/dashboard-<timestamp>.bmp` - Versioned 1-bit monochrome BMP snapshots
+- `output/dashboard-manifest.json` - Atomic current/previous snapshot pointers used by the server routes
+
+The public aliases stay the same:
+- `/dashboard.bmp` serves the current snapshot
+- `/dashboard.previous.bmp` serves the previous snapshot
 
 ### ESP32 Integration
 
@@ -149,9 +153,9 @@ http://<server-ip>:3000/dashboard.bmp
 | `/api/data` | GET | Aggregated data from n8n |
 | `/api/refresh` | POST | Generate image manually |
 | `/api/changes` | GET | Pixel changes between current and previous image |
-| `/dashboard.bmp` | GET | Latest BMP image |
-| `/dashboard.previous.bmp` | GET | Previous BMP image |
-| `/output/:filename` | GET | Files from output directory |
+| `/dashboard.bmp` | GET | Latest BMP image via the current manifest alias |
+| `/dashboard.previous.bmp` | GET | Previous BMP image via the previous manifest alias |
+| `/output/:filename` | GET | Alias access to `dashboard.bmp` or `dashboard.previous.bmp` |
 
 ## Image Interval
 

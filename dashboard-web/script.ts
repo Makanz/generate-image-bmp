@@ -18,7 +18,7 @@ interface Room {
 }
 
 interface ForecastDay {
-    temp: number;
+    max: number;
 }
 
 interface OutdoorWeather {
@@ -230,8 +230,8 @@ function updateOutdoorWeather(weather: WeatherData): void {
     for (let i = 0; i < 3; i++) {
         const el = document.getElementById(`forecast-${i}`);
         if (el) {
-            el.textContent = forecast[i]?.temp !== undefined
-                ? Math.round(forecast[i].temp) + '°'
+            el.textContent = forecast[i]?.max !== undefined
+                ? Math.round(forecast[i].max) + '°'
                 : '--°';
         }
     }
@@ -320,7 +320,7 @@ function generateMockData(): void {
         {
             outdoor: {
                 current: 9,
-                forecast: [{ temp: 12 }, { temp: 8 }, { temp: 6 }],
+                forecast: [{ max: 12 }, { max: 8 }, { max: 6 }],
             },
         },
         {

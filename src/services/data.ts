@@ -16,7 +16,6 @@ const CACHE_TTL_MS: Record<string, number> = {
 const ERROR_RETRY_MS = parseInt(process.env.ERROR_RETRY_MINUTES || '2', 10) * 60 * 1000;
 
 interface ForecastDay {
-    temp: number;
     max: number;
     min: number | null;
     precipitation_probability: number | null;
@@ -126,13 +125,12 @@ function normalizeWeather(raw: WeatherRaw | WeatherRaw[] | null): WeatherData | 
     const minTemps = daily.temperature_2m_min || [];
 
     const end = WEATHER_FORECAST_START_INDEX + WEATHER_FORECAST_COUNT;
-    const forecast = maxTemps.slice(WEATHER_FORECAST_START_INDEX, end).map((max, i) => ({
-        temp: (max + (minTemps[i + WEATHER_FORECAST_START_INDEX] ?? max)) / 2,
-        max,
-        min: minTemps[i + WEATHER_FORECAST_START_INDEX] ?? null,
-        precipitation_probability: (daily.precipitation_probability_max || [])[i + WEATHER_FORECAST_START_INDEX] ?? null,
-        weather_code: (daily.weather_code || [])[i + WEATHER_FORECAST_START_INDEX] ?? null
-    }));
+const forecast = maxTemps.slice(WEATHER_FORECAST_START_INDEX, end).map((max, i) => ({
+          max,
+          min: minTemps[i + WEATHER_FORECAST_START_INDEX] ?? null,
+          precipitation_probability: (daily.precipitation_probability_max || [])[i + WEATHER_FORECAST_START_INDEX] ?? null,
+          weather_code: (daily.weather_code || [])[i + WEATHER_FORECAST_START_INDEX] ?? null
+        }));
 
     return {
         outdoor: {

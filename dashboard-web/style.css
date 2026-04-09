@@ -205,7 +205,7 @@ body {
 }
 
 .date-month {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: var(--font-weight-extrabold);
     letter-spacing: 5px;
     margin-top: 8px;
@@ -229,8 +229,9 @@ body {
 }
 
 .lunch-content {
-    font-size: 16px;
+    font-size: 18px;
     line-height: var(--line-height-relaxed);
+    font-weight: var(--font-weight-bold);
 }
 
 .lunch-day-name {
@@ -240,8 +241,9 @@ body {
 }
 
 .lunch-meal {
-    font-size: 16px;
+    font-size: 18px;
     padding: var(--spacing-xs) 0;
+    font-weight: var(--font-weight-bold);
 }
 
 .lunch-meal::before {

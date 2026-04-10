@@ -7,13 +7,14 @@ import { extractRegion } from './src/services/image-processing';
 import { generateImage, getChanges } from './capture';
 import { fetchAllData, fetchAllDataFresh, fetchWeatherFresh, restoreCache } from './src/services/data';
 import { handleApiError } from './src/utils/errors';
-import { resolvePublishedImagePath } from './src/utils/output-manifest';
+import { resolvePublishedImagePath, readOutputManifest } from './src/utils/output-manifest';
 import { getAppRoot } from './src/utils/path';
 import { SERVER_STARTUP_DELAY_MS } from './src/utils/constants';
 
 const app = express();
+app.use(express.json()); // Parse JSON bodies
 const PORT = parseInt(process.env.PORT || '3000', 10);
-const REFRESH_INTERVAL = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '15', 10);
+let refreshInterval = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '15', 10) * 60;
 const APP_ROOT = getAppRoot();
 const OUTPUT_DIR = path.join(APP_ROOT, 'output');
 
@@ -137,8 +138,9 @@ app.get('/dashboard.previous.bmp', async (_req: Request, res: Response) => {
 });
 
 app.get('/api/changes', withErrorHandling('Error getting changes', async (_req, res) => {
-    const changes = await getChanges();
-    res.json(changes);
+    const [changes, manifest] = await Promise.all([getChanges(), readOutputManifest(OUTPUT_DIR)]);
+    const generatedAt = manifest.current?.generatedAt ?? changes.timestamp;
+    res.json({ ...changes, timestamp: generatedAt, refreshInterval });
 }));
 
 app.get('/api/image-region', withErrorHandling('Error getting image region', async (req, res) => {
@@ -170,10 +172,30 @@ app.post('/api/refresh', withErrorHandling('Image generation failed', async (_re
     res.json({ ok: true, timestamp: new Date().toISOString() });
 }));
 
+// New endpoint to configure refresh interval
+app.post('/api/refresh-interval', withErrorHandling('Error setting refresh interval', async (req, res) => {
+    const { refreshInterval: newInterval } = req.body;
+    
+    if (!Number.isInteger(newInterval) || newInterval < 1 || newInterval > 3600) {
+        res.status(400).json({ error: 'Invalid interval (must be 1-3600 seconds)' });
+        return;
+    }
+    
+    refreshInterval = newInterval;
+    process.env.REFRESH_INTERVAL_MINUTES = String(Math.round(newInterval / 60));
+    scheduleCron();
+    res.json({ ok: true, newInterval });
+}));
+
 async function scheduledImageGeneration(): Promise<void> {
-    console.log(`[cron] Fetching fresh data and generating image (every ${REFRESH_INTERVAL} min)...`);
+    console.log(`[cron] Fetching fresh data and generating image (every ${refreshInterval}s)...`);
     await generateImageWhenReady(true);
     console.log('[cron] Image generated successfully.');
+}
+
+function getCronExpression(intervalSeconds: number): string {
+    const minutes = Math.max(1, Math.round(intervalSeconds / 60));
+    return `*/${minutes} * * * *`;
 }
 
 export function isQuietHours(hour: number = new Date().getHours()): boolean {
@@ -191,27 +213,37 @@ export function isQuietHours(hour: number = new Date().getHours()): boolean {
 
 let wasInQuietHours = false;
 
-cron.schedule(`*/${REFRESH_INTERVAL} * * * *`, async () => {
-    const quiet = isQuietHours();
-    if (!wasInQuietHours && quiet) {
-        console.log('[cron] Stilla timmar börjar — genererar sista bild...');
+let cronTask: ReturnType<typeof cron.schedule> | null = null;
+
+export function scheduleCron(): void {
+    if (cronTask) {
+        cronTask.stop();
+    }
+    cronTask = cron.schedule(getCronExpression(refreshInterval), async () => {
+        const quiet = isQuietHours();
+        if (!wasInQuietHours && quiet) {
+            console.log('[cron] Stilla timmar börjar — genererar sista bild...');
+            try {
+                await scheduledImageGeneration();
+            } catch (err: unknown) {
+                handleApiError('[cron] Final quiet-hours image failed', err);
+            }
+        }
+        wasInQuietHours = quiet;
+        if (quiet) {
+            console.log('[cron] Stilla timmar aktiva — hoppar över generering.');
+            return;
+        }
         try {
             await scheduledImageGeneration();
         } catch (err: unknown) {
-            handleApiError('[cron] Final quiet-hours image failed', err);
+            handleApiError('[cron] Image generation failed', err);
         }
-    }
-    wasInQuietHours = quiet;
-    if (quiet) {
-        console.log('[cron] Stilla timmar aktiva — hoppar över generering.');
-        return;
-    }
-    try {
-        await scheduledImageGeneration();
-    } catch (err: unknown) {
-        handleApiError('[cron] Image generation failed', err);
-    }
-});
+    });
+}
+
+scheduleCron();
+
 
 const server = app.listen(PORT, async () => {
     console.log(`Dashboard server running on http://localhost:${PORT}`);

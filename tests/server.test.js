@@ -24,7 +24,8 @@ jest.mock('../capture', () => ({
         changes: [],
         currentChecksum: 'sha256:abc123',
         previousChecksum: 'sha256:def456',
-        timestamp: '2024-01-01T00:00:00.000Z'
+        timestamp: '2024-01-01T00:00:00.000Z',
+        refreshInterval: 15 // Default refresh interval for tests
     })
 }));
 
@@ -33,7 +34,8 @@ jest.mock('../src/services/image-processing', () => ({
 }));
 
 jest.mock('../src/utils/output-manifest', () => ({
-    resolvePublishedImagePath: jest.fn().mockResolvedValue(null)
+    resolvePublishedImagePath: jest.fn().mockResolvedValue(null),
+    readOutputManifest: jest.fn().mockResolvedValue({ current: null, previous: null })
 }));
 
 describe('isQuietHours()', () => {
@@ -245,13 +247,15 @@ describe('server - API endpoints', () => {
     });
 
     describe('GET /api/changes', () => {
-        test('returns changes with checksums', async () => {
+        test('returns changes with checksums and refreshInterval', async () => {
             const res = await request(app).get('/api/changes');
             expect(res.status).toBe(200);
             expect(res.body).toHaveProperty('changes');
             expect(res.body).toHaveProperty('currentChecksum');
             expect(res.body).toHaveProperty('previousChecksum');
             expect(res.body).toHaveProperty('timestamp');
+            expect(res.body).toHaveProperty('refreshInterval');
+            expect(typeof res.body.refreshInterval).toBe('number');
         });
 
         test('returns 500 with generic error message on failure', async () => {
@@ -280,6 +284,71 @@ describe('server - API endpoints', () => {
             expect(res.status).toBe(500);
             expect(res.body).toHaveProperty('error', 'Internal server error');
             expect(res.body).not.toHaveProperty('ok');
+        });
+    });
+
+    describe('POST /api/refresh-interval', () => {
+        beforeEach(() => {
+            // Reset environment before each test
+            delete process.env.REFRESH_INTERVAL_MINUTES;
+            jest.clearAllMocks();
+        });
+
+        test('uses default interval when none provided', async () => {
+            // Test with no REFRESH_INTERVAL_MINUTES set (should default to 15 minutes = 900 seconds)
+            const res = await request(app).get('/api/changes');
+            expect(res.status).toBe(200);
+            expect(res.body.refreshInterval).toBe(900); // Default 15 minutes converted to seconds
+        });
+
+        test('sets valid refresh interval and returns success', async () => {
+            const res = await request(app)
+                .post('/api/refresh-interval')
+                .send({ refreshInterval: 30 })
+                .expect(200);
+
+            expect(res.body.ok).toBe(true);
+            expect(res.body).toHaveProperty('newInterval', 30);
+            expect(process.env.REFRESH_INTERVAL_MINUTES).toBe('1'); // 30s rounds to 1 min
+        });
+
+        test('rejects non-integer refresh interval', async () => {
+            const res = await request(app)
+                .post('/api/refresh-interval')
+                .send({ refreshInterval: 'invalid' })
+                .expect(400);
+
+            expect(res.body.error).toBe('Invalid interval (must be 1-3600 seconds)');
+        });
+
+        test('rejects refresh interval below minimum', async () => {
+            const res = await request(app)
+                .post('/api/refresh-interval')
+                .send({ refreshInterval: 0 })
+                .expect(400);
+
+            expect(res.body.error).toBe('Invalid interval (must be 1-3600 seconds)');
+        });
+
+        test('rejects refresh interval above maximum', async () => {
+            const res = await request(app)
+                .post('/api/refresh-interval')
+                .send({ refreshInterval: 3601 })
+                .expect(400);
+
+            expect(res.body.error).toBe('Invalid interval (must be 1-3600 seconds)');
+        });
+
+        test('returns updated interval in /api/changes after setting new value', async () => {
+            // Set new interval to 600 seconds (10 minutes)
+            await request(app)
+                .post('/api/refresh-interval')
+                .send({ refreshInterval: 600 });
+
+            // Check that /api/changes reflects the new interval in seconds
+            const res = await request(app).get('/api/changes');
+            expect(res.status).toBe(200);
+            expect(res.body.refreshInterval).toBe(600);
         });
     });
 

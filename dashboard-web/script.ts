@@ -411,6 +411,47 @@ updateDate();
 void fetchData();
 
 setInterval(() => {
-    updateDate();
+updateDate();
     void fetchData();
-}, 5 * 60 * 1000);
+    
+    // Initialize with default interval (5 minutes)
+    let refreshIntervalMs = 5 * 60 * 1000;
+    let refreshTimer: number | null = null;
+
+    // Function to start the refresh loop with current interval
+    function startRefreshLoop() {
+        // Clear any existing timer
+        if (refreshTimer !== null) {
+            clearInterval(refreshTimer);
+        }
+        
+        // Set up the interval timer
+        refreshTimer = window.setInterval(async () => {
+            updateDate();
+            void fetchData();
+        }, refreshIntervalMs);
+        
+        // Run immediately on start (already called above)
+    }
+
+    // Fetch the refresh interval from API and apply it
+    async function initializeRefreshInterval() {
+        try {
+            const response = await fetch('/api/changes');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.refreshInterval !== undefined) {
+                    refreshIntervalMs = Math.max(10000, data.refreshInterval * 1000); // Convert to ms, min 10s
+                    console.log(`[ui] Set refresh interval to ${refreshIntervalMs}ms`);
+                }
+            }
+        } catch (err) {
+            console.warn('[ui] Failed to fetch refresh interval, using default');
+        }
+        
+        // Start the refresh loop with the determined interval
+        startRefreshLoop();
+    }
+
+    // Initialize the refresh interval and start the loop
+    void initializeRefreshInterval();

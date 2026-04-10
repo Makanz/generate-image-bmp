@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express, { Request, Response } from 'express';
+import express, { type Express, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
@@ -11,7 +11,7 @@ import { resolvePublishedImagePath, readOutputManifest } from './src/utils/outpu
 import { getAppRoot } from './src/utils/path';
 import { SERVER_STARTUP_DELAY_MS } from './src/utils/constants';
 
-const app = express();
+const app: Express = express();
 app.use(express.json()); // Parse JSON bodies
 const PORT = parseInt(process.env.PORT || '3000', 10);
 let refreshInterval = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '15', 10) * 60;

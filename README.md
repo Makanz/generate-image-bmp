@@ -152,14 +152,51 @@ http://<server-ip>:3000/dashboard.bmp
 | `/` | GET | Dashboard HTML |
 | `/api/data` | GET | Aggregated data from n8n |
 | `/api/refresh` | POST | Generate image manually |
-| `/api/changes` | GET | Pixel changes between current and previous image |
+| `/api/changes` | GET | Pixel changes between current and previous image (includes `refreshInterval` in seconds) |
+| `/api/refresh-interval` | POST | Update the refresh interval for polling |
 | `/dashboard.bmp` | GET | Latest BMP image via the current manifest alias |
 | `/dashboard.previous.bmp` | GET | Previous BMP image via the previous manifest alias |
 | `/output/:filename` | GET | Alias access to `dashboard.bmp` or `dashboard.previous.bmp` |
 
-## Image Interval
+### Refresh Interval
 
-Default is 15 minutes. Change with `REFRESH_INTERVAL_MINUTES` in `.env`.
+**Server-side default**: 15 minutes (can be changed via `REFRESH_INTERVAL_MINUTES` in `.env`)
+
+**Dynamic polling**: The display fetches `/api/changes` to get the current `refreshInterval` (in seconds), allowing runtime configuration.
+
+**Update refresh interval**:
+```bash
+curl -X POST http://localhost:3000/api/refresh-interval \
+  -H "Content-Type: application/json" \
+  -d '{"refreshInterval": 60}'
+```
+
+**Request body**:
+```json
+{
+  "refreshInterval": 60
+}
+```
+
+**Constraints**:
+- Minimum: 1 second
+- Maximum: 3600 seconds (1 hour)
+- Must be an integer
+
+**Response**:
+```json
+{
+  "ok": true,
+  "newInterval": 60
+}
+```
+
+**Example workflow**:
+1. ESP32/display starts up and polls `/api/changes`
+2. Response includes `"refreshInterval": 900` (15 minutes in seconds)
+3. Display uses this interval for subsequent polling
+4. To change interval, send `POST /api/refresh-interval` with new value
+5. Next `/api/changes` call will reflect the updated interval
 
 ## Screenshot Options
 

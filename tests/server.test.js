@@ -34,7 +34,8 @@ jest.mock('../src/services/image-processing', () => ({
 }));
 
 jest.mock('../src/utils/output-manifest', () => ({
-    resolvePublishedImagePath: jest.fn().mockResolvedValue(null)
+    resolvePublishedImagePath: jest.fn().mockResolvedValue(null),
+    readOutputManifest: jest.fn().mockResolvedValue({ current: null, previous: null })
 }));
 
 describe('isQuietHours()', () => {
@@ -308,7 +309,7 @@ describe('server - API endpoints', () => {
 
             expect(res.body.ok).toBe(true);
             expect(res.body).toHaveProperty('newInterval', 30);
-            expect(process.env.REFRESH_INTERVAL_MINUTES).toBe('30');
+            expect(process.env.REFRESH_INTERVAL_MINUTES).toBe('1'); // 30s rounds to 1 min
         });
 
         test('rejects non-integer refresh interval', async () => {
@@ -339,15 +340,15 @@ describe('server - API endpoints', () => {
         });
 
         test('returns updated interval in /api/changes after setting new value', async () => {
-            // Set new interval (10 minutes = 600 seconds)
+            // Set new interval to 600 seconds (10 minutes)
             await request(app)
                 .post('/api/refresh-interval')
-                .send({ refreshInterval: 10 });
+                .send({ refreshInterval: 600 });
 
-            // Check that /api/changes reflects the new interval (converted to seconds)
+            // Check that /api/changes reflects the new interval in seconds
             const res = await request(app).get('/api/changes');
             expect(res.status).toBe(200);
-            expect(res.body.refreshInterval).toBe(600); // 10 minutes * 60 seconds
+            expect(res.body.refreshInterval).toBe(600);
         });
     });
 

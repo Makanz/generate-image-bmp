@@ -448,8 +448,8 @@ app.post('/api/refresh-interval', withErrorHandling('Error setting refresh inter
 }));
 
 async function scheduledImageGeneration(): Promise<void> {
-    console.log(`[cron] Fetching fresh data and generating image (every ${refreshInterval}s)...`);
-    await generateImageWhenReady(true);
+    console.log(`[cron] Fetching data and generating image (every ${refreshInterval}s)...`);
+    await generateImageWhenReady(false);
     console.log('[cron] Image generated successfully.');
 }
 

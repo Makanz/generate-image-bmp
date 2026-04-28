@@ -18,7 +18,6 @@ interface GenerateImageOptions {
 }
 
 let inFlightGeneration: Promise<{ bmp: string }> | null = null;
-let currentGenerationSource: Promise<{ bmp: string }> | null = null;
 
 export function isGenerating(): boolean {
     return inFlightGeneration !== null;
@@ -89,10 +88,8 @@ async function generateImage(options: GenerateImageOptions = {}): Promise<{ bmp:
 
     promise.finally(() => {
         inFlightGeneration = null;
-        currentGenerationSource = null;
     });
 
-    currentGenerationSource = promise;
     return promise;
 }
 

@@ -303,35 +303,13 @@ async function restoreCache(): Promise<void> {
         const raw = await fs.readFile(CACHE_FILE, 'utf-8');
         const saved: Cache = JSON.parse(raw);
 
-        const weatherEntry = saved.weather;
-        if (isValidCacheEntry(weatherEntry)) {
-            const age = Date.now() - weatherEntry.timestamp;
-            if (weatherEntry.data !== null && age < CACHE_TTL_MS.weather) {
-                cache.weather = weatherEntry;
-            }
-        }
-
-        const calendarEntry = saved.calendar;
-        if (isValidCacheEntry(calendarEntry)) {
-            const age = Date.now() - calendarEntry.timestamp;
-            if (calendarEntry.data !== null && age < CACHE_TTL_MS.calendar) {
-                cache.calendar = calendarEntry;
-            }
-        }
-
-        const lunchEntry = saved.lunch;
-        if (isValidCacheEntry(lunchEntry)) {
-            const age = Date.now() - lunchEntry.timestamp;
-            if (lunchEntry.data !== null && age < CACHE_TTL_MS.lunch) {
-                cache.lunch = lunchEntry;
-            }
-        }
-
-        const indoorEntry = saved.indoor;
-        if (isValidCacheEntry(indoorEntry)) {
-            const age = Date.now() - indoorEntry.timestamp;
-            if (indoorEntry.data !== null && age < CACHE_TTL_MS.indoor) {
-                cache.indoor = indoorEntry;
+        for (const key of ['weather', 'calendar', 'lunch', 'indoor'] as const) {
+            const entry = saved[key];
+            if (isValidCacheEntry(entry)) {
+                const age = Date.now() - entry.timestamp;
+                if (entry.data !== null && age < CACHE_TTL_MS[key]) {
+                    cache[key] = entry as never;
+                }
             }
         }
 

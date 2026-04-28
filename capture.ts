@@ -84,14 +84,16 @@ async function generateImage(options: GenerateImageOptions = {}): Promise<{ bmp:
         return inFlightGeneration;
     }
 
-    currentGenerationSource = _generateImage(options);
-    const wrapped = currentGenerationSource.finally(() => {
+    const promise = _generateImage(options);
+    inFlightGeneration = promise;
+
+    promise.finally(() => {
         inFlightGeneration = null;
         currentGenerationSource = null;
     });
-    inFlightGeneration = wrapped;
 
-    return inFlightGeneration;
+    currentGenerationSource = promise;
+    return promise;
 }
 
 async function getChanges(): Promise<ChangesResult> {

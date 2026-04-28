@@ -1,214 +1,238 @@
-# GenerateImageBmp
+# Dashboard BMP Generator
 
-Dashboard app that generates BMP images (800x480) with weather, calendar, and lunch data from n8n webhooks.
+A TypeScript application that generates a **1-bit monochrome BMP dashboard image** (800×480) for an **ESP32 e-paper display**. It aggregates weather, calendar, school lunch, and indoor temperature data from various sources and renders them into a clean, low-power bitmap.
+
+![Dashboard Preview](docs/dashboard-preview.png)
+
+## Features
+
+- 🌤 **Weather** — Outdoor temperature, 3-day forecast, wind, humidity from [Open-Meteo](https://open-meteo.com/)
+- 🏠 **Indoor temperature** — Per-room readings via Homey API or n8n webhook
+- 📅 **Calendar** — Today's and tomorrow's events from n8n webhook
+- 🍽 **School lunch** — Weekly lunch menu from n8n webhook
+- 🖨 **1-bit BMP output** — Optimized for ESP32 e-paper displays (800×480)
+- 🔄 **Automatic refresh** — Configurable cron-based image regeneration
+- 🌙 **Quiet hours** — Skip generation during configurable hours (e.g., nighttime)
+- 📡 **Change detection** — Flood-fill algorithm that identifies changed pixel regions between captures
+- 🐳 **Docker support** — Full Docker / docker-compose deployment
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  n8n (https://n8nflow.duckdns.org)                              │
-│  ├── Webhook: /webhook/<weather-id>  →  SMHI weather data       │
-│  ├── Webhook: /webhook/<calendar-id> →  Google Calendar        │
-│  ├── Webhook: /webhook/6e6ed191-...  →  School lunch (foodit)  │
-│  └── Webhook: /webhook/<indoor-id>   →  Indoor temperature      │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Dashboard App (TypeScript/Express, Docker)                     │
-│  ├── GET /              → Dashboard HTML                         │
-│  ├── GET /api/data     → Aggregated data from n8n              │
-│  ├── POST /api/refresh → Generate image manually               │
-│  ├── GET /api/changes  → Pixel changes between images          │
-│  ├── GET /dashboard.bmp → Latest BMP (1-bit monochrome)        │
-│  ├── GET /dashboard.previous.bmp → Previous BMP                │
-│  └── GET /output/:filename → Files from output directory       │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  ESP32 with e-paper display                                     │
-│  Fetches /dashboard.bmp from the server                        │
-└─────────────────────────────────────────────────────────────────┘
+n8n webhooks (weather/calendar/lunch/indoor)
+        │
+        ▼
+server.ts (Express) ──► src/services/data.ts  (in-memory cache, per-source TTLs)
+        │                       └── src/services/homey.ts  (optional Homey API)
+        │
+        ├── GET /              ──► dashboard-web/ (static Vite frontend)
+        ├── GET /api/data      ──► aggregated JSON
+        ├── GET /api/changes   ──► pixel diff regions
+        ├── GET /dashboard.bmp ──► latest BMP image
+        └── POST /api/refresh  ──► triggers regeneration
+                │
+                ▼
+          capture.ts
+          ├── Playwright (local Chromium, default)
+          └── Browserless SaaS   (if BROWSERLESS_URL is set)
+                │
+                ▼
+          sharp pipeline → output/dashboard.bmp  (1-bit monochrome)
 ```
 
-## Installation
+## Quick Start
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 18+
+- [pnpm](https://pnpm.io/) (recommended) or npm
+
+### Setup
 
 ```bash
+# Clone the repository
+git clone git@github.com:Makanz/generate-image-bmp.git
+cd generate-image-bmp
+
+# Install dependencies
 pnpm install
-```
 
-## Configuration
-
-Copy `.env.example` to `.env` and configure:
-
-```env
-PORT=3000
-REFRESH_INTERVAL_MINUTES=15
-
-N8N_WEBHOOK_WEATHER=https://n8nflow.duckdns.org/webhook/<weather-id>
-N8N_WEBHOOK_CALENDAR=https://n8nflow.duckdns.org/webhook/<calendar-id>
-N8N_WEBHOOK_LUNCH=https://n8nflow.duckdns.org/webhook/6e6ed191-a7c2-44ba-8193-1460fffd9ccb
-N8N_WEBHOOK_INDOOR=https://n8nflow.duckdns.org/webhook/<indoor-id>
-
-HOMEY_IP=192.168.x.x
-HOMEY_TOKEN=
-HOMEY_USERNAME=
-HOMEY_PASSWORD=
-
-BROWSERLESS_TOKEN=
-```
-
-### n8n Webhooks
-
-#### Lunch (done)
-Use existing webhook: `/webhook/6e6ed191-a7c2-44ba-8193-1460fffd9ccb`
-
-#### Weather (SMHI)
-Create an n8n workflow with:
-1. **HTTP Request** → Fetch from SMHI API (example: `https://opendata-download-metfcst.smhi.se/api/category/pmp3g/version/2/geotype/point/lon/18.0686/lat/59.3293/data.json`)
-2. **Webhook** → Expose as `GET` endpoint
-3. **Transform** the response to the format:
-   ```json
-   {
-     "temperature": 18.5,
-     "description": "Partly cloudy",
-     "location": "Stockholm",
-     "precipitation": 20
-   }
-   ```
-
-#### Calendar (Google Calendar)
-Create an n8n workflow with:
-1. **Google Calendar Trigger** → Fetch events for today + 7 days
-2. **Webhook** → Expose as `GET` endpoint
-3. **Transform** the response to the format:
-   ```json
-   {
-     "events": [
-       { "date": "2024-01-15", "summary": "Meeting" },
-       { "date": "2024-01-16", "summary": "Groceries" }
-     ]
-   }
-   ```
-
-## Local Development
-
-```bash
-pnpm run dev         # Start Vite dev server for dashboard-web
-```
-
-```bash
-pnpm start           # Start Express server (TypeScript)
-```
-
-```bash
-pnpm run generate    # Generate image manually (standalone, no server required)
-```
-
-```bash
-pnpm run build       # Build TypeScript + production frontend
-pnpm run preview     # Preview production build
-```
-
-```bash
-pnpm test            # Run tests with Jest
-```
-
-After `pnpm run build`, the server serves the built frontend bundle from `dashboard-web/dist`. If that build output is missing, it falls back to serving the source files from `dashboard-web` for local development.
-
-## Docker
-
-### Build and Start
-
-```bash
+# Copy and configure environment variables
 cp .env.example .env
-# Edit .env with your webhook URLs
-
-docker-compose up -d
+# Edit .env with your API keys and endpoints
 ```
 
-### Image Generation
+### Running
 
-Images are saved to `output/`:
-- `output/dashboard-<timestamp>.bmp` - Versioned 1-bit monochrome BMP snapshots
-- `output/dashboard-manifest.json` - Atomic current/previous snapshot pointers used by the server routes
-
-The public aliases stay the same:
-- `/dashboard.bmp` serves the current snapshot
-- `/dashboard.previous.bmp` serves the previous snapshot
-
-### ESP32 Integration
-
-ESP32 can fetch the image via:
-```
-http://<server-ip>:3000/dashboard.bmp
-```
-
-## API
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Dashboard HTML |
-| `/api/data` | GET | Aggregated data from n8n |
-| `/api/refresh` | POST | Generate image manually |
-| `/api/changes` | GET | Pixel changes between current and previous image (includes `refreshInterval` in seconds) |
-| `/api/refresh-interval` | POST | Update the refresh interval for polling |
-| `/dashboard.bmp` | GET | Latest BMP image via the current manifest alias |
-| `/dashboard.previous.bmp` | GET | Previous BMP image via the previous manifest alias |
-| `/output/:filename` | GET | Alias access to `dashboard.bmp` or `dashboard.previous.bmp` |
-
-### Refresh Interval
-
-**Server-side default**: 15 minutes (can be changed via `REFRESH_INTERVAL_MINUTES` in `.env`)
-
-**Dynamic polling**: The display fetches `/api/changes` to get the current `refreshInterval` (in seconds), allowing runtime configuration.
-
-**Update refresh interval**:
 ```bash
-curl -X POST http://localhost:3000/api/refresh-interval \
-  -H "Content-Type: application/json" \
-  -d '{"refreshInterval": 60}'
+# Start the dashboard dev server (for previewing in browser)
+pnpm run dev
+
+# Or build and start the production server
+pnpm run build
+pnpm start
 ```
 
-**Request body**:
+### Generate an image
+
+```bash
+pnpm run generate
+```
+
+The generated BMP will be written to `output/dashboard.bmp`.
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `PORT` | No | `3000` | Express server port |
+| `TZ` | No | `Europe/Stockholm` | Timezone |
+| `OPEN_METEO_LAT` | Yes* | — | Latitude for weather data |
+| `OPEN_METEO_LON` | Yes* | — | Longitude for weather data |
+| `N8N_WEBHOOK_CALENDAR` | No | — | n8n webhook URL for calendar events |
+| `N8N_WEBHOOK_LUNCH` | No | — | n8n webhook URL for lunch menu |
+| `N8N_WEBHOOK_INDOOR` | No | — | n8n webhook URL for indoor temps |
+| `HOMEY_IP` | No | — | Homey hub IP (alternative to n8n for indoor) |
+| `HOMEY_TOKEN` | No | — | Homey long-lived API token |
+| `REFRESH_INTERVAL_MINUTES` | No | `15` | Cron interval for auto-regeneration |
+| `BROWSERLESS_URL` | No | — | Browserless REST API URL (falls back to Playwright) |
+| `BROWSERLESS_TOKEN` | No | — | Basic auth token for Browserless |
+| `CAPTURE_URL` | No | `http://localhost:{PORT}` | URL to capture for the BMP screenshot |
+| `QUIET_HOURS_START` | No | — | Quiet hours start (hour, e.g. `23`) |
+| `QUIET_HOURS_END` | No | — | Quiet hours end (hour, e.g. `6`) |
+| `WEATHER_REFRESH_MINUTES` | No | `15` | Weather cache TTL |
+| `CALENDAR_REFRESH_MINUTES` | No | `15` | Calendar cache TTL |
+| `LUNCH_REFRESH_HOURS` | No | `24` | Lunch cache TTL |
+| `INDOOR_REFRESH_MINUTES` | No | `15` | Indoor temp cache TTL |
+| `ERROR_RETRY_MINUTES` | No | `2` | Retry delay after a fetch failure |
+
+*\* Required for weather data — other sources are optional.*
+
+## API Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/` | Frontend dashboard preview |
+| `GET` | `/api/data` | Aggregated JSON (weather, calendar, lunch, indoor) |
+| `GET` | `/api/changes` | Changed pixel regions since last capture |
+| `GET` | `/api/image-region?x=&y=&w=&h=` | Extract a BMP sub-region |
+| `GET` | `/dashboard.bmp` | Latest generated BMP image |
+| `GET` | `/dashboard.previous.bmp` | Previous BMP image |
+| `POST` | `/api/refresh` | Force immediate image regeneration |
+| `POST` | `/api/refresh-interval` | Update cron interval dynamically |
+| `GET` | `/api-docs` | Swagger UI documentation |
+
+## Docker Deployment
+
+```bash
+# Build and run
+docker compose up -d
+
+# Or build manually
+docker build -t dashboard-bmp .
+docker run -d \
+  --name dashboard \
+  -p 3001:3000 \
+  -e TZ=Europe/Stockholm \
+  -e OPEN_METEO_LAT=... \
+  -e OPEN_METEO_LON=... \
+  dashboard-bmp
+```
+
+The included `docker-compose.yml` provides a production-ready setup with:
+- Automatic restart (`restart: unless-stopped`)
+- Timezone set to `Europe/Stockholm`
+- Persistent output volume for generated BMPs
+- Browserless integration for screenshot capture
+
+> **Note:** The Dockerfile installs Chromium for Playwright-based screenshot
+> capture. If you use a remote Browserless instance instead, you can skip
+> Playwright by setting `BROWSERLESS_URL` and `BROWSERLESS_TOKEN`.
+
+## Output Manifest
+
+Generated images are tracked via `output/dashboard-manifest.json`:
+
 ```json
 {
-  "refreshInterval": 60
+  "current": {
+    "file": "dashboard-2026-04-28T08-47-49-321Z.bmp",
+    "generatedAt": "2026-04-28T08:47:49.321Z",
+    "checksum": "sha256:abc123..."
+  },
+  "previous": {
+    "file": "dashboard-2026-04-28T08-42-49-100Z.bmp",
+    "generatedAt": "2026-04-28T08:42:49.100Z",
+    "checksum": "sha256:def456..."
+  }
 }
 ```
 
-**Constraints**:
-- Minimum: 1 second
-- Maximum: 3600 seconds (1 hour)
-- Must be an integer
+## Change Detection
 
-**Response**:
-```json
-{
-  "ok": true,
-  "newInterval": 60
-}
+The app can detect which pixel regions changed between captures using a
+flood-fill algorithm, exposed via `GET /api/changes`. Nearby regions are
+merged (within 10px by default) into bounding rectangles for efficient
+partial refreshes on e-paper displays.
+
+## Testing
+
+```bash
+pnpm test
 ```
 
-**Example workflow**:
-1. ESP32/display starts up and polls `/api/changes`
-2. Response includes `"refreshInterval": 900` (15 minutes in seconds)
-3. Display uses this interval for subsequent polling
-4. To change interval, send `POST /api/refresh-interval` with new value
-5. Next `/api/changes` call will reflect the updated interval
+The test suite covers:
+- BMP file writing and parsing
+- Screenshot capture and manifest management
+- Change detection (flood-fill, region merging)
+- Data fetching, caching, and serialization
+- Homey API integration
+- Server API endpoints (via supertest)
 
-## Screenshot Options
+## Project Structure
 
-Image generation uses Playwright (local Chromium) by default. Alternatively, [Browserless](https://www.browserless.io/) can be used:
-
-```env
-BROWSERLESS_URL=http://<host>:3000
-BROWSERLESS_TOKEN=<token>
+```
+generate-image-bmp/
+├── capture.ts                  # Image generation entry point
+├── server.ts                   # Express API server + cron
+├── src/
+│   ├── image/
+│   │   └── bmp-writer.ts       # 1-bit BMP file encoder
+│   ├── services/
+│   │   ├── data.ts             # Data fetching and caching
+│   │   ├── homey.ts            # Homey integration
+│   │   ├── screenshot.ts       # Playwright / Browserless provider
+│   │   ├── change-detection.ts # Flood-fill pixel diff
+│   │   └── image-processing.ts # Greyscale, threshold, region extraction
+│   └── utils/
+│       ├── constants.ts         # Shared configuration constants
+│       ├── errors.ts           # Error handling utilities
+│       ├── output-manifest.ts  # Manifest read/write helpers
+│       └── path.ts             # Path resolution
+├── dashboard-web/              # Vite-based frontend
+│   ├── index.html
+│   ├── script.ts
+│   └── style.css
+├── tests/                      # Jest test suite
+├── output/                     # Generated BMP images
+├── design/                     # Design assets
+├── Dockerfile
+├── docker-compose.yml
+└── vite.config.js
 ```
 
-Or provide a ready dashboard URL directly:
+## Tech Stack
 
-```env
-CAPTURE_URL=http://<host>:3001
-```
+- **Runtime:** Node.js, TypeScript
+- **Server:** Express 5
+- **Frontend:** Vanilla JS/TS, Vite, CSS
+- **Image Processing:** sharp
+- **Screenshot:** Playwright (local) or Browserless (remote)
+- **Data:** Open-Meteo API, Homey API, n8n webhooks
+- **Caching:** In-memory with JSON file persistence
+- **Testing:** Jest, supertest
+- **Deployment:** Docker
+
+## License
+
+ISC

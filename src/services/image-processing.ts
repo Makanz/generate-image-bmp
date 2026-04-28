@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import fs from 'fs/promises';
-import { WIDTH, HEIGHT } from '../utils/constants';
+import { WIDTH, HEIGHT, GREYSCALE_THRESHOLD } from '../utils/constants';
 import { writeBmpToBuffer } from '../image/bmp-writer';
 
 const FILE_HEADER_SIZE = 14;
@@ -58,7 +58,7 @@ export async function processToGreyscale(
     } else {
         const result = await sharp(buffer)
             .greyscale()
-            .threshold(128)
+            .threshold(GREYSCALE_THRESHOLD)
             .raw()
             .toBuffer({ resolveWithObject: true });
         pixelData = result.data;
@@ -118,7 +118,7 @@ export async function extractRegion(
     const regionPixels = await sharp(imagePath)
         .extract({ left, top, width, height })
         .greyscale()
-        .threshold(128)
+        .threshold(GREYSCALE_THRESHOLD)
         .raw()
         .toBuffer();
     return writeBmpToBuffer(width, height, regionPixels);

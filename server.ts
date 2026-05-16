@@ -6,7 +6,7 @@ import cron from 'node-cron';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import { extractRegion } from './src/services/image-processing';
-import { generateImage, getChanges } from './capture';
+import { generateImage, getChanges, isGenerating, getInFlightGeneration } from './capture';
 import { fetchAllData, fetchAllDataFresh, fetchWeatherFresh, restoreCache } from './src/services/data';
 import { handleApiError } from './src/utils/errors';
 import { resolvePublishedImagePath, readOutputManifest } from './src/utils/output-manifest';
@@ -502,6 +502,47 @@ export function scheduleCron(): void {
     });
 }
 
+const SHUTDOWN_GRACE_MS = 10_000;
+
+async function shutdown(signal: string): Promise<void> {
+    console.log(`[server] ${signal} mottagen, stänger ner graciöst...`);
+
+    // 1. Stoppa cron — inga nya schemalagda körningar
+    if (cronTask) {
+        cronTask.stop();
+        cronTask = null;
+        console.log('[server] Cron stoppad.');
+    }
+
+    // 2. Stäng Express-servern — sluta acceptera nya anslutningar
+    await new Promise<void>((resolve) => {
+        server.close(() => {
+            console.log('[server] HTTP-server stängd.');
+            resolve();
+        });
+    });
+
+    // 3. Vänta på pågående bildgenerering (max grace period)
+    if (isGenerating()) {
+        const inFlight = getInFlightGeneration()!;
+        console.log('[server] Väntar på pågående bildgenerering...');
+        try {
+            await Promise.race([
+                inFlight,
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout')), SHUTDOWN_GRACE_MS)
+                )
+            ]);
+            console.log('[server] Pågående bildgenerering slutförd.');
+        } catch {
+            console.warn('[server] Timeout — pågående bildgenerering hann inte slutföras.');
+        }
+    }
+
+    console.log('[server] Avslutas.');
+    process.exit(0);
+}
+
 scheduleCron();
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -519,5 +560,8 @@ const server = app.listen(PORT, async () => {
         }
     }, SERVER_STARTUP_DELAY_MS);
 });
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 export { app, server };

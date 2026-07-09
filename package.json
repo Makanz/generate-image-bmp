@@ -7,9 +7,9 @@
     "test": "tests"
   },
   "scripts": {
-    "dev": "vite dashboard-web",
-    "build": "tsc && vite build dashboard-web",
-    "preview": "vite preview dashboard-web",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
     "start": "ts-node --transpile-only server.ts",
     "generate": "ts-node --transpile-only capture.ts",
     "test": "jest"

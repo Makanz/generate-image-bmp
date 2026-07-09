@@ -87,6 +87,7 @@ The generated BMP will be written to `output/dashboard.bmp`.
 |---|---|---|---|
 | `PORT` | No | `3000` | Express server port |
 | `TZ` | No | `Europe/Stockholm` | Timezone |
+| `DASHBOARD_DESIGN` | No | `classic` | Which design to serve: `classic` (3 columns) or `summer` (masthead + 2 columns) |
 | `OPEN_METEO_LAT` | Yes* | — | Latitude for weather data |
 | `OPEN_METEO_LON` | Yes* | — | Longitude for weather data |
 | `N8N_WEBHOOK_CALENDAR` | No | — | n8n webhook URL for calendar events |
@@ -210,9 +211,12 @@ generate-image-bmp/
 │       ├── output-manifest.ts  # Manifest read/write helpers
 │       └── path.ts             # Path resolution
 ├── dashboard-web/              # Vite-based frontend
-│   ├── index.html
-│   ├── script.ts
-│   └── style.css
+│   ├── index.html              # "classic" design (3 columns)
+│   ├── script.ts               # shared render logic (both designs)
+│   ├── style.css
+│   └── summer/                # "summer" design (masthead + 2 columns)
+│       ├── index.html
+│       └── style.css
 ├── tests/                      # Jest test suite
 ├── output/                     # Generated BMP images
 ├── design/                     # Design assets

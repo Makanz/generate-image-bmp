@@ -37,6 +37,7 @@ interface WeatherData {
 interface Room {
     name: string;
     temp: number | null;
+    humid?: number | null;
 }
 
 interface IndoorData {
@@ -147,10 +148,18 @@ function normalizeIndoor(raw: { current?: number; rooms?: Room[] } | { current?:
     const entry = Array.isArray(raw) ? raw[0] : raw;
     if (!entry) return null;
 
-    const rooms = (entry.rooms || []).filter(r => r.temp !== null && r.temp !== undefined);
+    // Behåll rum som har temperatur och/eller luftfuktighet.
+    const rooms = (entry.rooms || []).filter(r =>
+        (r.temp !== null && r.temp !== undefined) ||
+        (r.humid !== null && r.humid !== undefined)
+    );
     if (rooms.length === 0) return null;
 
-    const avg = rooms.reduce((sum, r) => sum + (r.temp as number), 0) / rooms.length;
+    // Snittemperaturen beräknas bara över rum som har temp (humid-rum ska inte påverka).
+    const tempRooms = rooms.filter(r => r.temp !== null && r.temp !== undefined);
+    const avg = tempRooms.length > 0
+        ? tempRooms.reduce((sum, r) => sum + (r.temp as number), 0) / tempRooms.length
+        : 0;
 
     return {
         current: entry.current ?? Math.round(avg * 10) / 10,

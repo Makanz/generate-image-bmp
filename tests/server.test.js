@@ -113,12 +113,14 @@ describe('isQuietHours()', () => {
 describe('frontend asset serving helpers', () => {
     let resolveFrontendRoot;
     let setFrontendCacheHeaders;
+    let resolveDesignIndex;
     let tempRoot;
 
     beforeAll(() => {
         const serverModule = require('../server');
         resolveFrontendRoot = serverModule.resolveFrontendRoot;
         setFrontendCacheHeaders = serverModule.setFrontendCacheHeaders;
+        resolveDesignIndex = serverModule.resolveDesignIndex;
     });
 
     beforeEach(() => {
@@ -171,6 +173,45 @@ describe('frontend asset serving helpers', () => {
         headers.clear();
         setFrontendCacheHeaders(res, path.join(tempRoot, 'dashboard-web'), path.join(tempRoot, 'dashboard-web', 'script.ts'));
         expect(headers.has('Cache-Control')).toBe(false);
+    });
+
+    describe('resolveDesignIndex()', () => {
+        let designRoot;
+
+        beforeEach(() => {
+            designRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'design-root-'));
+            // classic index.html at the root
+            fs.writeFileSync(path.join(designRoot, 'index.html'), '<!doctype html><title>Classic</title>');
+            // summer index.html in a summer/ subfolder
+            fs.mkdirSync(path.join(designRoot, 'summer'), { recursive: true });
+            fs.writeFileSync(path.join(designRoot, 'summer', 'index.html'), '<!doctype html><title>Summer</title>');
+        });
+
+        afterEach(() => {
+            fs.rmSync(designRoot, { recursive: true, force: true });
+            delete process.env.DASHBOARD_DESIGN;
+        });
+
+        test('serves classic index.html by default', () => {
+            delete process.env.DASHBOARD_DESIGN;
+            expect(resolveDesignIndex(designRoot)).toBe(path.join(designRoot, 'index.html'));
+        });
+
+        test('serves summer index.html when DASHBOARD_DESIGN=summer', () => {
+            process.env.DASHBOARD_DESIGN = 'summer';
+            expect(resolveDesignIndex(designRoot)).toBe(path.join(designRoot, 'summer', 'index.html'));
+        });
+
+        test('falls back to classic when DASHBOARD_DESIGN=summer but summer file is missing', () => {
+            fs.rmSync(path.join(designRoot, 'summer', 'index.html'));
+            process.env.DASHBOARD_DESIGN = 'summer';
+            expect(resolveDesignIndex(designRoot)).toBe(path.join(designRoot, 'index.html'));
+        });
+
+        test('falls back to classic for an unknown design value', () => {
+            process.env.DASHBOARD_DESIGN = 'nope';
+            expect(resolveDesignIndex(designRoot)).toBe(path.join(designRoot, 'index.html'));
+        });
     });
 });
 

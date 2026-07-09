@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=800">
+    <title>Dashboard</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700,900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body data-design="summer">
+    <div class="dashboard">
+
+        <!-- ── Masthead ── -->
+        <header class="masthead">
+            <div class="masthead-left">
+                <div class="mh-weekday" id="date-weekday">--</div>
+                <div class="mh-date">
+                    <span class="mh-date-day" id="date-day">--</span>
+                    <span class="mh-date-month" id="date-month">---</span>
+                </div>
+            </div>
+            <div class="masthead-right">
+                <div class="mh-ute-label">UTE</div>
+                <div class="mh-ute-temp">
+                    <span id="ute-temp-val">--</span><span class="mh-degree">°</span><span class="mh-trend" id="ute-trend"></span>
+                </div>
+                <div class="mh-forecast" id="ute-forecast">
+                    <span class="forecast-item" id="forecast-0">--°</span>
+                    <span class="forecast-sep">|</span>
+                    <span class="forecast-item" id="forecast-1">--°</span>
+                    <span class="forecast-sep">|</span>
+                    <span class="forecast-item" id="forecast-2">--°</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ── Body: 2 kolumner ── -->
+        <main class="body">
+
+            <!-- Vänster kolumn: INNE (MAT I SKOLAN dolt under semester) -->
+            <section class="col col-left">
+                <div class="inne-block">
+                    <div class="block-header">
+                        <span class="block-label">INNE</span>
+                        <span class="inne-temp-wrap">
+                            <span id="inne-temp-val">--</span><span class="mh-degree">°</span><span class="mh-trend" id="inne-trend"></span>
+                        </span>
+                    </div>
+
+                    <div class="divider-h"></div>
+
+                    <div class="temp-rooms" id="inne-rooms">
+                        <div id="room-chart"></div>
+                    </div>
+                </div>
+
+                <!-- MAT I SKOLAN hoppat över — semester, ingen skola.
+                     Behåller elementet dolt så script.ts-ID:n (#lunch-content) finns kvar för framtida koppling. -->
+                <div class="lunch-block" hidden>
+                    <div class="section-label">MAT I SKOLAN</div>
+                    <div class="lunch-content" id="lunch-content"></div>
+                </div>
+            </section>
+
+            <div class="divider-v"></div>
+
+            <!-- Höger kolumn: KALENDER -->
+            <section class="col col-right">
+                <div class="cal-section">
+                    <div class="section-label">IDAG</div>
+                    <div class="cal-events" id="cal-today">
+                        <p class="loading">Laddar...</p>
+                    </div>
+                </div>
+                <div class="divider-h"></div>
+                <div class="cal-section">
+                    <div class="section-label">IMORGON</div>
+                    <div class="cal-events" id="cal-tomorrow">
+                        <p class="loading">Laddar...</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+    </div>
+    <script type="module" src="../script.ts"></script>
+</body>
+</html>

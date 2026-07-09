@@ -90,6 +90,7 @@ const swaggerOptions = {
                                 properties: {
                                     name: { type: 'string' },
                                     temp: { type: 'number', nullable: true },
+                                    humid: { type: 'number', nullable: true },
                                 },
                             },
                         },
@@ -206,6 +207,27 @@ export function setFrontendCacheHeaders(
     }
 }
 
+const VALID_DASHBOARDS = new Set(['classic', 'summer']);
+
+/**
+ * Returns the index.html path for the configured dashboard design
+ * (env DASHBOARD_DESIGN, default 'classic'). Falls back to classic if the
+ * chosen design's index.html is missing or the value is unknown.
+ */
+export function resolveDesignIndex(frontendRoot: string): string {
+    const design = process.env.DASHBOARD_DESIGN || 'classic';
+    if (design === 'summer') {
+        const summerIndex = path.join(frontendRoot, 'summer', 'index.html');
+        if (fs.existsSync(summerIndex)) {
+            return summerIndex;
+        }
+        console.warn('[server] DASHBOARD_DESIGN=summer men summer/index.html saknas — faller tillbaka på classic');
+    } else if (!VALID_DASHBOARDS.has(design)) {
+        console.warn(`[server] Okänd DASHBOARD_DESIGN "${design}" — använder classic`);
+    }
+    return path.join(frontendRoot, 'index.html');
+}
+
 async function generateImageWhenReady(forceRefresh = false): Promise<void> {
     let data = forceRefresh ? await fetchAllDataFresh() : await fetchAllData();
     let weather = data.weather;
@@ -248,8 +270,9 @@ async function sendPublishedImage(res: Response, alias: PublishedImageAlias): Pr
 }
 
 app.get('/', (_req: Request, res: Response) => {
-    setFrontendCacheHeaders(res, FRONTEND_ROOT, path.join(FRONTEND_ROOT, 'index.html'));
-    res.sendFile(path.join(FRONTEND_ROOT, 'index.html'));
+    const indexFile = resolveDesignIndex(FRONTEND_ROOT);
+    setFrontendCacheHeaders(res, FRONTEND_ROOT, indexFile);
+    res.sendFile(indexFile);
 });
 
 app.use(express.static(FRONTEND_ROOT, {

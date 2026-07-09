@@ -119,7 +119,7 @@ html, body {
 
 .mh-ute-temp {
     display: flex;
-    align-items: baseline;
+    align-items: flex-start;
     line-height: var(--line-height-snug);
     margin-top: var(--spacing-sm);
 }
@@ -223,7 +223,7 @@ html, body {
 
 .inne-temp-wrap {
     display: flex;
-    align-items: baseline;
+    align-items: flex-start;
 }
 
 .inne-temp-wrap #inne-temp-val {

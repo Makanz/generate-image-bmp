@@ -14,7 +14,8 @@ const DAYS_CAP   = DAYS_LOWER.map(d => d.charAt(0).toUpperCase() + d.slice(1));
 
 interface Room {
     name: string;
-    temp: number;
+    temp?: number | null;
+    humid?: number | null;
 }
 
 interface ForecastDay {
@@ -179,9 +180,11 @@ function renderRoomChart(rooms: Room[]): void {
         return;
     }
     container.innerHTML = rooms.map(room => {
-        const val   = Math.round(room.temp);
         const label = room.name.toUpperCase();
-        return `<div class="room-row"><span class="room-name">${escapeHtml(label)}</span><span class="room-temp">${val}°</span></div>`;
+        const hasHumid = room.humid !== undefined && room.humid !== null;
+        const val   = hasHumid ? Math.round(room.humid as number) : Math.round(room.temp ?? 0);
+        const unit  = hasHumid ? '%' : '°';
+        return `<div class="room-row"><span class="room-name">${escapeHtml(label)}</span><span class="room-temp">${val}${unit}</span></div>`;
     }).join('');
 }
 
@@ -207,11 +210,13 @@ function renderCalendarEvents(events: CalendarEvent[], containerId: string): voi
 // ── Update functions ──────────────────────────────────────────────────────────
 
 function updateDate(): void {
-    const now     = new Date();
-    const dayEl   = document.getElementById('date-day');
-    const monthEl = document.getElementById('date-month');
-    if (dayEl)   dayEl.textContent   = String(now.getDate());
-    if (monthEl) monthEl.textContent = MONTHS_UPPER[now.getMonth()];
+    const now       = new Date();
+    const dayEl     = document.getElementById('date-day');
+    const monthEl   = document.getElementById('date-month');
+    const weekdayEl = document.getElementById('date-weekday');
+    if (dayEl)     dayEl.textContent     = String(now.getDate());
+    if (monthEl)   monthEl.textContent   = MONTHS_UPPER[now.getMonth()];
+    if (weekdayEl) weekdayEl.textContent = DAYS_CAP[now.getDay()];
 }
 
 function updateOutdoorWeather(weather: WeatherData): void {
@@ -326,9 +331,10 @@ function generateMockData(): void {
         {
             current: 20,
             rooms: [
-                { name: 'KÖK',   temp: 21 },
-                { name: 'V-RUM', temp: 22 },
-                { name: 'S-RUM', temp: 20 },
+                { name: 'Kök',          temp: 21 },
+                { name: 'Vardagsrum',    temp: 22 },
+                { name: 'Sovrum',        temp: 20 },
+                { name: 'Luftfuktighet', humid: 52 },
             ],
         }
     );

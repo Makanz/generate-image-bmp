@@ -1,0 +1,371 @@
+/* CSS-variabler — samma namn som production */
+:root {
+    /* Färger */
+    --color-text: #000;
+    --color-bg: #fff;
+    --color-border: #000;
+
+    /* Typografi */
+    --font-family: 'Roboto', Arial, Helvetica, sans-serif;
+    --font-weight-normal: 400;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extrabold: 800;
+
+    /* Spacing (8px rutsystem) */
+    --spacing-xs: 2px;
+    --spacing-sm: 4px;
+    --spacing-md: 8px;
+    --spacing-lg: 12px;
+    --spacing-xl: 16px;
+    --spacing-2xl: 24px;
+
+    /* Line Heights */
+    --line-height-tight: 0.88;
+    --line-height-snug: 0.9;
+    --line-height-normal: 1;
+    --line-height-relaxed: 1.4;
+
+    /* Border */
+    --border-width: 1px;
+    --border-divider: var(--border-width) solid var(--color-border);
+    --border-masthead: 2px solid var(--color-border);
+
+    /* Layout */
+    --masthead-height: 170px;
+    --col-left-width: 480px;
+    --col-right-width: 320px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    font-family: var(--font-family);
+    background: var(--color-bg);
+    color: var(--color-text);
+    width: 800px;
+    height: 480px;
+    overflow: hidden;
+    -webkit-font-smoothing: none;
+    font-smooth: never;
+}
+
+.dashboard {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* ── Masthead ── */
+.masthead {
+    height: var(--masthead-height);
+    flex: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    border-bottom: var(--border-masthead);
+}
+
+.masthead-left,
+.masthead-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+
+.masthead-right {
+    align-items: flex-end;
+}
+
+.mh-weekday {
+    font-size: 24px;
+    font-weight: var(--font-weight-extrabold);
+    letter-spacing: 4px;
+    line-height: var(--line-height-normal);
+}
+
+.mh-date {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-sm);
+}
+
+.mh-date-day {
+    font-size: 64px;
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-snug);
+    letter-spacing: -2px;
+}
+
+.mh-date-month {
+    font-size: 24px;
+    font-weight: var(--font-weight-extrabold);
+    letter-spacing: 4px;
+}
+
+.mh-ute-label {
+    font-size: 16px;
+    font-weight: var(--font-weight-extrabold);
+    letter-spacing: 3px;
+    line-height: var(--line-height-normal);
+}
+
+.mh-ute-temp {
+    display: flex;
+    align-items: baseline;
+    line-height: var(--line-height-snug);
+    margin-top: var(--spacing-sm);
+}
+
+.mh-ute-temp #ute-temp-val {
+    font-size: 96px;
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-snug);
+    letter-spacing: -3px;
+}
+
+.mh-degree {
+    font-size: 48px;
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-snug);
+}
+
+.mh-trend {
+    font-size: 32px;
+    font-weight: var(--font-weight-normal);
+    margin-left: var(--spacing-sm);
+}
+
+.mh-forecast {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+}
+
+.forecast-item {
+    font-size: 22px;
+    font-weight: var(--font-weight-extrabold);
+}
+
+.forecast-sep {
+    font-size: 16px;
+    font-weight: var(--font-weight-normal);
+}
+
+/* ── Body (2 kolumner) ── */
+.body {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+
+.col {
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    overflow: hidden;
+    min-width: 0;
+}
+
+.col-left {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.col-right {
+    width: var(--col-right-width);
+    flex: none;
+}
+
+/* ── Avdelare ── */
+.divider-v {
+    width: var(--border-width);
+    background: var(--color-border);
+    flex-shrink: 0;
+}
+
+.divider-h {
+    height: var(--border-width);
+    background: var(--color-border);
+    margin: var(--spacing-lg) 0;
+    flex-shrink: 0;
+}
+
+/* ── Vänster: INNE-block ── */
+.inne-block {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.block-header {
+    flex: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: var(--spacing-sm);
+}
+
+.block-label {
+    font-size: 20px;
+    font-weight: var(--font-weight-extrabold);
+    letter-spacing: 3px;
+}
+
+.inne-temp-wrap {
+    display: flex;
+    align-items: baseline;
+}
+
+.inne-temp-wrap #inne-temp-val {
+    font-size: 72px;
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-snug);
+    letter-spacing: -2px;
+}
+
+.inne-temp-wrap .mh-degree {
+    font-size: 40px;
+}
+
+.inne-block .divider-h {
+    margin: 0;
+}
+
+.temp-rooms {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#room-chart {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.room-row {
+    flex: 1 1 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 26px;
+    font-weight: var(--font-weight-semibold);
+    padding: 0 var(--spacing-xs);
+    border-bottom: var(--border-divider);
+}
+
+.room-row:last-child {
+    border-bottom: none;
+}
+
+.room-name {
+    letter-spacing: 1px;
+}
+
+.room-temp {
+    font-size: 32px;
+    font-weight: var(--font-weight-extrabold);
+}
+
+/* ── Vänster: MAT-block ── */
+.lunch-block {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* hidden-attributet ska alltid gälla, även när en klass sätter display */
+[hidden] {
+    display: none !important;
+}
+
+.section-label {
+    font-size: 16px;
+    font-weight: var(--font-weight-extrabold);
+    letter-spacing: 2px;
+    margin-bottom: var(--spacing-sm);
+    border-bottom: var(--border-divider);
+    padding-bottom: var(--spacing-xs);
+}
+
+.lunch-content {
+    font-size: 18px;
+    line-height: var(--line-height-relaxed);
+    font-weight: var(--font-weight-bold);
+}
+
+.lunch-day-name {
+    font-weight: var(--font-weight-extrabold);
+    font-size: 18px;
+    margin-bottom: var(--spacing-xs);
+}
+
+.lunch-meal {
+    font-size: 18px;
+    padding: var(--spacing-xs) 0;
+    font-weight: var(--font-weight-bold);
+}
+
+.lunch-meal::before {
+    content: '– ';
+}
+
+/* ── Höger: Kalender ── */
+.cal-section {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.cal-events {
+    font-size: 14px;
+    line-height: var(--line-height-relaxed);
+    flex: 1;
+    overflow: hidden;
+}
+
+.cal-event {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-xs) 0;
+    white-space: nowrap;
+    overflow: hidden;
+    align-items: baseline;
+}
+
+.cal-time {
+    font-size: 16px;
+    font-weight: var(--font-weight-bold);
+    flex-shrink: 0;
+    width: 48px;
+}
+
+.cal-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 18px;
+    font-weight: var(--font-weight-extrabold);
+}
+
+/* ── Generellt ── */
+.no-data {
+    font-size: 14px;
+    font-weight: var(--font-weight-bold);
+}

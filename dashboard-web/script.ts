@@ -20,6 +20,7 @@ interface Room {
 
 interface ForecastDay {
     max: number;
+    weather_code?: number | null;
 }
 
 interface OutdoorWeather {
@@ -30,6 +31,7 @@ interface OutdoorWeather {
 interface WeatherData {
     outdoor: OutdoorWeather;
     temperature?: number;
+    current_weather_code?: number | null;
 }
 
 interface IndoorData {
@@ -209,6 +211,34 @@ function renderCalendarEvents(events: CalendarEvent[], containerId: string): voi
 
 // ── Update functions ──────────────────────────────────────────────────────────
 
+function getWeatherSymbol(code: number | null | undefined): string {
+    if (code === null || code === undefined) return '';
+    if (code === 0) return '☀';
+    if (code >= 1 && code <= 3) return '☁';
+    if (code === 45 || code === 48) return '🌫';
+    if (code >= 51 && code <= 57) return '🌧';
+    if (code >= 61 && code <= 67) return '🌧';
+    if (code >= 71 && code <= 77) return '❄';
+    if (code >= 80 && code <= 82) return '⛈';
+    if (code >= 85 && code <= 86) return '❄';
+    if (code >= 95 && code <= 99) return '⚡';
+    return '';
+}
+
+function getWeatherText(code: number | null | undefined): string {
+    if (code === null || code === undefined) return '';
+    if (code === 0) return 'SOL';
+    if (code >= 1 && code <= 3) return 'MOLN';
+    if (code === 45 || code === 48) return 'DIMMA';
+    if (code >= 51 && code <= 57) return 'DUGG';
+    if (code >= 61 && code <= 67) return 'REGN';
+    if (code >= 71 && code <= 77) return 'SNÖ';
+    if (code >= 80 && code <= 82) return 'SKURAR';
+    if (code >= 85 && code <= 86) return 'SNÖSKURAR';
+    if (code >= 95 && code <= 99) return 'ÅSKA';
+    return '';
+}
+
 function updateDate(): void {
     const now       = new Date();
     const dayEl     = document.getElementById('date-day');
@@ -239,6 +269,11 @@ function updateOutdoorWeather(weather: WeatherData): void {
                 ? Math.round(forecast[i].max) + '°'
                 : '--°';
         }
+    }
+
+    const weatherSymbolEl = document.getElementById('ute-weather');
+    if (weatherSymbolEl) {
+        weatherSymbolEl.textContent = getWeatherSymbol(weather.current_weather_code);
     }
 }
 
@@ -327,6 +362,7 @@ function generateMockData(): void {
                 current: 9,
                 forecast: [{ max: 12 }, { max: 8 }, { max: 6 }],
             },
+            current_weather_code: 61,
         },
         {
             current: 20,

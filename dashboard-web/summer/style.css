@@ -124,6 +124,14 @@ html, body {
     margin-top: var(--spacing-sm);
 }
 
+.mh-weather {
+    align-self: center;
+    font-size: 48px;
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    margin-right: var(--spacing-sm);
+}
+
 .mh-ute-temp #ute-temp-val {
     font-size: 96px;
     font-weight: var(--font-weight-bold);

@@ -17,7 +17,11 @@
                     <div class="temp-label">UTE</div>
                     <div class="temp-unit">°C</div>
                 </div>
-                <div class="temp-main" id="ute-temp"><span id="ute-temp-val">--</span><span class="temp-trend" id="ute-trend"></span></div>
+                <div class="temp-main" id="ute-temp">
+                    <span class="temp-weather" id="ute-weather"></span>
+                    <span id="ute-temp-val">--</span>
+                    <span class="temp-trend" id="ute-trend"></span>
+                </div>
                 <div class="temp-forecast" id="ute-forecast">
                     <span class="forecast-item" id="forecast-0">--°</span>
                     <span class="forecast-sep">|</span>
@@ -46,6 +50,7 @@
         <!-- Middle: Date + School Lunch -->
         <div class="col col-date">
             <div class="date-section">
+                <div class="date-weekday" id="date-weekday">---</div>
                 <div class="date-day" id="date-day">--</div>
                 <div class="date-month" id="date-month">---</div>
             </div>

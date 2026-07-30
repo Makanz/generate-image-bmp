@@ -6,7 +6,8 @@ import cron from 'node-cron';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import { extractRegion } from './src/services/image-processing';
-import { generateImage, getChanges, isGenerating, getInFlightGeneration } from './capture';
+import { generateImage, isGenerating, getInFlightGeneration } from './capture';
+import { getChanges } from './src/services/change-detection';
 import { fetchAllData, fetchAllDataFresh, fetchWeatherFresh, restoreCache } from './src/services/data';
 import { handleApiError } from './src/utils/errors';
 import { resolvePublishedImagePath, readOutputManifest } from './src/utils/output-manifest';
@@ -335,7 +336,7 @@ app.get('/api/changes', withErrorHandling('Error getting changes', async (_req, 
      *             schema:
      *               $ref: '#/components/schemas/ChangesResponse'
      */
-    const [changes, manifest] = await Promise.all([getChanges(), readOutputManifest(OUTPUT_DIR)]);
+    const [changes, manifest] = await Promise.all([getChanges(OUTPUT_DIR), readOutputManifest(OUTPUT_DIR)]);
     const generatedAt = manifest.current?.generatedAt ?? changes.timestamp;
     res.json({ ...changes, timestamp: generatedAt, refreshInterval });
 }));

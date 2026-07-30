@@ -20,12 +20,16 @@ jest.mock('../src/services/data', () => ({
 
 jest.mock('../capture', () => ({
     generateImage: jest.fn().mockResolvedValue({ bmp: 'output/dashboard.bmp' }),
+    isGenerating: jest.fn().mockReturnValue(false),
+    getInFlightGeneration: jest.fn().mockReturnValue(null)
+}));
+
+jest.mock('../src/services/change-detection', () => ({
     getChanges: jest.fn().mockResolvedValue({
         changes: [],
         currentChecksum: 'sha256:abc123',
         previousChecksum: 'sha256:def456',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        refreshInterval: 15 // Default refresh interval for tests
+        timestamp: '2024-01-01T00:00:00.000Z'
     })
 }));
 
@@ -300,7 +304,7 @@ describe('server - API endpoints', () => {
         });
 
         test('returns 500 with generic error message on failure', async () => {
-            const { getChanges } = require('../capture');
+            const { getChanges } = require('../src/services/change-detection');
             getChanges.mockRejectedValueOnce(new Error('File error'));
 
             const res = await request(app).get('/api/changes');

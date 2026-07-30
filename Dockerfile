@@ -20,7 +20,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/dashboard-web/dist ./dashboard-web
+COPY --from=builder /app/dashboard-web/dist ./dashboard-web/dist
 
 EXPOSE 3000
 

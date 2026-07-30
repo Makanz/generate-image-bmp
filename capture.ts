@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { writeBmp } from './src/image/bmp-writer';
 import { createScreenshotProvider } from './src/services/screenshot';
-import { getChanges as getChangesImpl, mergeRegions as mergeRegionsImpl, detectChanges as detectChangesImpl, computeChecksum as computeChecksumImpl, ChangeRegion, ChangesResult } from './src/services/change-detection';
+import { getChanges, mergeRegions, detectChanges, computeChecksum, ChangeRegion, ChangesResult } from './src/services/change-detection';
 import { WIDTH, HEIGHT, GREYSCALE_THRESHOLD } from './src/utils/constants';
 import { createSnapshotFilename, publishSnapshot, pruneSnapshotFiles } from './src/utils/output-manifest';
 import { getAppRoot } from './src/utils/path';
@@ -18,7 +18,6 @@ interface GenerateImageOptions {
 }
 
 let inFlightGeneration: Promise<{ bmp: string }> | null = null;
-let currentGenerationSource: Promise<{ bmp: string }> | null = null;
 
 export function isGenerating(): boolean {
     return inFlightGeneration !== null;
@@ -84,30 +83,13 @@ async function generateImage(options: GenerateImageOptions = {}): Promise<{ bmp:
         return inFlightGeneration;
     }
 
-    currentGenerationSource = _generateImage(options);
-    const wrapped = currentGenerationSource.finally(() => {
+    const source = _generateImage(options);
+    const wrapped = source.finally(() => {
         inFlightGeneration = null;
-        currentGenerationSource = null;
     });
     inFlightGeneration = wrapped;
 
     return inFlightGeneration;
-}
-
-async function getChanges(): Promise<ChangesResult> {
-    return getChangesImpl(OUTPUT_DIR);
-}
-
-function mergeRegions(regions: ChangeRegion[], distance: number): ChangeRegion[] {
-    return mergeRegionsImpl(regions, distance);
-}
-
-async function detectChanges(currentPath: string, previousPath: string): Promise<ChangeRegion[]> {
-    return detectChangesImpl(currentPath, previousPath);
-}
-
-async function computeChecksum(filePath: string): Promise<string | null> {
-    return computeChecksumImpl(filePath);
 }
 
 async function main(): Promise<void> {
@@ -123,5 +105,5 @@ if (require.main === module) {
     });
 }
 
-export { generateImage, getChanges, mergeRegions, detectChanges, computeChecksum };
-export type { ChangeRegion, ChangesResult, GenerateImageOptions };
+export { generateImage };
+export type { GenerateImageOptions };

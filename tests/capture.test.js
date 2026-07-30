@@ -29,7 +29,7 @@ jest.mock('../src/image/bmp-writer', () => ({
     })
 }));
 
-const { computeChecksum, mergeRegions, detectChanges } = require('../capture.ts');
+const { computeChecksum, mergeRegions, detectChanges } = require('../src/services/change-detection');
 
 describe('capture.js - computeChecksum', () => {
     let tempFile;

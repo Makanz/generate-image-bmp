@@ -1,4 +1,4 @@
-const { mergeRegions } = require('../capture.ts');
+const { mergeRegions } = require('../src/services/change-detection');
 
 describe('mergeRegions - union-find implementation', () => {
     test('returns empty array unchanged', () => {

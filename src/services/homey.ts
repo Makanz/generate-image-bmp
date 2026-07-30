@@ -61,7 +61,11 @@ interface Device {
 }
 
 function calculateAverage(rooms: Room[]): number {
-    return rooms.reduce((sum, r) => sum + (r.temp as number), 0) / rooms.length;
+    const temps = rooms
+        .map(r => r.temp)
+        .filter((t): t is number => t !== null);
+    if (temps.length === 0) return 0;
+    return temps.reduce((sum, t) => sum + t, 0) / temps.length;
 }
 
 async function fetchIndoorTemperatures(): Promise<IndoorData | null> {

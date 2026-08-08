@@ -97,6 +97,8 @@ generate-image-bmp/
 pnpm install
 ```
 
+> **Important**: Whenever `package.json` dependencies are added, removed, or version-bumped, run `pnpm install` to update `pnpm-lock.yaml`. The lockfile must stay in sync with `package.json` — otherwise installs fail with `ERR_PNPM_OUTDATED_LOCKFILE` (frozen-lockfile). Commit the updated lockfile together with the `package.json` change.
+
 ### Development
 ```bash
 pnpm run dev         # Start Vite dev server for dashboard-web

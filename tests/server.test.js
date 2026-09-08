@@ -33,6 +33,11 @@ jest.mock('../src/services/change-detection', () => ({
     })
 }));
 
+jest.mock('../src/services/refresh-config', () => ({
+    loadRefreshIntervalSeconds: jest.fn().mockResolvedValue(null),
+    persistRefreshIntervalSeconds: jest.fn().mockResolvedValue(undefined)
+}));
+
 jest.mock('../src/services/image-processing', () => ({
     extractRegion: jest.fn().mockResolvedValue(Buffer.from('BM'))
 }));
@@ -360,7 +365,8 @@ describe('server - API endpoints', () => {
             expect(res.body.refreshInterval).toBe(900); // Default 15 minutes converted to seconds
         });
 
-        test('sets valid refresh interval and returns success', async () => {
+        test('sets valid refresh interval, persists it, and returns success', async () => {
+            const { persistRefreshIntervalSeconds } = require('../src/services/refresh-config');
             const res = await request(app)
                 .post('/api/refresh-interval')
                 .send({ refreshInterval: 30 })
@@ -368,7 +374,9 @@ describe('server - API endpoints', () => {
 
             expect(res.body.ok).toBe(true);
             expect(res.body).toHaveProperty('newInterval', 30);
-            expect(process.env.REFRESH_INTERVAL_MINUTES).toBe('1'); // 30s rounds to 1 min
+            expect(persistRefreshIntervalSeconds).toHaveBeenCalledWith(30);
+            // process.env must no longer be mutated
+            expect(process.env.REFRESH_INTERVAL_MINUTES).toBeUndefined();
         });
 
         test('rejects non-integer refresh interval', async () => {

@@ -10,6 +10,7 @@ import { extractRegion } from './src/services/image-processing';
 import { generateImage, isGenerating, getInFlightGeneration } from './capture';
 import { getChanges } from './src/services/change-detection';
 import { fetchAllData, fetchWeatherFresh, restoreCache } from './src/services/data';
+import { loadRefreshIntervalSeconds, persistRefreshIntervalSeconds } from './src/services/refresh-config';
 import { handleApiError } from './src/utils/errors';
 import { resolvePublishedImagePath, readOutputManifest } from './src/utils/output-manifest';
 import { getAppRoot } from './src/utils/path';
@@ -296,13 +297,13 @@ async function sendPublishedImage(res: Response, alias: PublishedImageAlias): Pr
         return;
     }
 
-    res.sendFile(imagePath);
+    res.sendFile(path.basename(imagePath), { root: path.dirname(imagePath) });
 }
 
 app.get('/', (_req: Request, res: Response) => {
     const indexFile = resolveDesignIndex(FRONTEND_ROOT);
     setFrontendCacheHeaders(res, FRONTEND_ROOT, indexFile);
-    res.sendFile(indexFile);
+    res.sendFile(path.relative(FRONTEND_ROOT, indexFile), { root: FRONTEND_ROOT });
 });
 
 app.use(express.static(FRONTEND_ROOT, {
@@ -495,7 +496,7 @@ app.post('/api/refresh-interval', requireApiToken, withErrorHandling('Error sett
     }
     
     refreshInterval = newInterval;
-    process.env.REFRESH_INTERVAL_MINUTES = String(Math.round(newInterval / 60));
+    await persistRefreshIntervalSeconds(newInterval);
     scheduleCron();
     res.json({ ok: true, newInterval });
 }));
@@ -604,6 +605,12 @@ const server = app.listen(PORT, async () => {
     console.log(`Dashboard server running on http://localhost:${PORT}`);
     if (!API_TOKEN) {
         console.warn('[server] API_TOKEN är inte satt — POST-endpoints (/api/refresh, /api/refresh-interval) är oskyddade. Sätt API_TOKEN i .env för att skydda dem.');
+    }
+    const persistedInterval = await loadRefreshIntervalSeconds();
+    if (persistedInterval !== null) {
+        refreshInterval = persistedInterval;
+        scheduleCron();
+        console.log(`[server] Using persisted refresh interval: ${persistedInterval}s`);
     }
     setTimeout(async () => {
         await restoreCache();

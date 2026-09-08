@@ -86,6 +86,7 @@ The generated BMP will be written to `output/dashboard.bmp`.
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `PORT` | No | `3000` | Express server port |
+| `API_TOKEN` | No | — | Shared secret protecting `POST /api/refresh` and `POST /api/refresh-interval`. When set, requests must send the header `X-Api-Token: <token>`. When unset, these endpoints are left open. |
 | `TZ` | No | `Europe/Stockholm` | Timezone |
 | `DASHBOARD_DESIGN` | No | `classic` | Which design to serve: `classic` (3 columns) or `summer` (masthead + 2 columns) |
 | `OPEN_METEO_LAT` | Yes* | — | Latitude for weather data |
@@ -119,8 +120,8 @@ The generated BMP will be written to `output/dashboard.bmp`.
 | `GET` | `/api/image-region?x=&y=&w=&h=` | Extract a BMP sub-region |
 | `GET` | `/dashboard.bmp` | Latest generated BMP image |
 | `GET` | `/dashboard.previous.bmp` | Previous BMP image |
-| `POST` | `/api/refresh` | Force immediate image regeneration |
-| `POST` | `/api/refresh-interval` | Update cron interval dynamically |
+| `POST` | `/api/refresh` | Force immediate image regeneration (requires `X-Api-Token` if `API_TOKEN` is set) |
+| `POST` | `/api/refresh-interval` | Update cron interval dynamically (requires `X-Api-Token` if `API_TOKEN` is set) |
 | `GET` | `/api-docs` | Swagger UI documentation |
 
 ## Docker Deployment

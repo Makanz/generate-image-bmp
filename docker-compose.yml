@@ -8,6 +8,7 @@ services:
     environment:
       - PORT=3000
       - TZ=Europe/Stockholm
+      - API_TOKEN=${API_TOKEN:-}
       - OPEN_METEO_LAT=${OPEN_METEO_LAT}
       - OPEN_METEO_LON=${OPEN_METEO_LON}
       - N8N_WEBHOOK_CALENDAR=${N8N_WEBHOOK_CALENDAR}

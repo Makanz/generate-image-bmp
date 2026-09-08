@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express, { type Express, Request, Response } from 'express';
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
@@ -158,6 +159,27 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 const app: Express = express();
 app.use(express.json()); // Parse JSON bodies
 const PORT = parseInt(process.env.PORT || '3000', 10);
+
+// Optional shared secret protecting mutating endpoints. When API_TOKEN is set,
+// POST /api/refresh and /api/refresh-interval require a matching X-Api-Token
+// header. When unset, the endpoints stay open (backwards compatible) but a
+// warning is logged at startup.
+const API_TOKEN = process.env.API_TOKEN || '';
+
+function requireApiToken(req: Request, res: Response, next: () => void): void {
+    if (!API_TOKEN) {
+        return next();
+    }
+    const provided = req.header('X-Api-Token') || '';
+    const a = Buffer.from(provided);
+    const b = Buffer.from(API_TOKEN);
+    const ok = a.length === b.length && crypto.timingSafeEqual(a, b);
+    if (!ok) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+    }
+    next();
+}
 let refreshInterval = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '15', 10) * 60;
 const APP_ROOT = getAppRoot();
 const OUTPUT_DIR = path.join(APP_ROOT, 'output');
@@ -411,7 +433,7 @@ app.get('/api/image-region', withErrorHandling('Error getting image region', asy
     res.send(regionBuffer);
 }));
 
-app.post('/api/refresh', withErrorHandling('Image generation failed', async (_req, res) => {
+app.post('/api/refresh', requireApiToken, withErrorHandling('Image generation failed', async (_req, res) => {
     /**
      * @openapi
      * /api/refresh:
@@ -433,7 +455,7 @@ app.post('/api/refresh', withErrorHandling('Image generation failed', async (_re
 }));
 
 // New endpoint to configure refresh interval
-app.post('/api/refresh-interval', withErrorHandling('Error setting refresh interval', async (req, res) => {
+app.post('/api/refresh-interval', requireApiToken, withErrorHandling('Error setting refresh interval', async (req, res) => {
     /**
      * @openapi
      * /api/refresh-interval:
@@ -573,6 +595,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 const server = app.listen(PORT, async () => {
     console.log(`Dashboard server running on http://localhost:${PORT}`);
+    if (!API_TOKEN) {
+        console.warn('[server] API_TOKEN är inte satt — POST-endpoints (/api/refresh, /api/refresh-interval) är oskyddade. Sätt API_TOKEN i .env för att skydda dem.');
+    }
     setTimeout(async () => {
         await restoreCache();
         console.log('[startup] Fetching fresh data and generating initial image...');

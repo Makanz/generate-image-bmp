@@ -321,6 +321,20 @@ describe('server - API endpoints', () => {
             expect(res.body).toHaveProperty('timestamp');
         });
 
+        test('forced refresh refreshes weather only, not the whole cache', async () => {
+            const { fetchAllData, fetchAllDataFresh, fetchWeatherFresh } = require('../src/services/data');
+            fetchAllDataFresh.mockClear();
+            fetchWeatherFresh.mockClear();
+
+            const res = await request(app).post('/api/refresh');
+            expect(res.status).toBe(200);
+
+            // The retry loop only cares about weather, so a forced refresh must
+            // refresh just weather instead of invalidating every source's cache.
+            expect(fetchAllDataFresh).not.toHaveBeenCalled();
+            expect(fetchWeatherFresh).toHaveBeenCalled();
+        });
+
         test('withErrorHandling returns 500 with generic message on failure', async () => {
             const { generateImage } = require('../capture');
             generateImage.mockRejectedValueOnce(new Error('Generation failed'));

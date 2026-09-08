@@ -23,8 +23,8 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "node-cron": "^4.2.1",
-    "playwright": "^1.58.2",
-    "sharp": "^0.34.5",
+    "playwright": "^1.62.0",
+    "sharp": "^0.35.4",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   },
@@ -41,5 +41,12 @@
     "ts-node": "^10.9.2",
     "typescript": "^6.0.2",
     "vite": "^8.0.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp",
+      "@scarf/scarf",
+      "unrs-resolver"
+    ]
   }
 }

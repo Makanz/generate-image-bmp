@@ -8,7 +8,7 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import { extractRegion } from './src/services/image-processing';
 import { generateImage, isGenerating, getInFlightGeneration } from './capture';
 import { getChanges } from './src/services/change-detection';
-import { fetchAllData, fetchAllDataFresh, fetchWeatherFresh, restoreCache } from './src/services/data';
+import { fetchAllData, fetchWeatherFresh, restoreCache } from './src/services/data';
 import { handleApiError } from './src/utils/errors';
 import { resolvePublishedImagePath, readOutputManifest } from './src/utils/output-manifest';
 import { getAppRoot } from './src/utils/path';
@@ -230,8 +230,15 @@ export function resolveDesignIndex(frontendRoot: string): string {
 }
 
 async function generateImageWhenReady(forceRefresh = false): Promise<void> {
-    let data = forceRefresh ? await fetchAllDataFresh() : await fetchAllData();
+    // Fetch all sources using their normal cache logic (no full-cache invalidation).
+    let data = await fetchAllData();
     let weather = data.weather;
+    // A forced refresh only needs weather to be fresh — the retry loop below
+    // cares solely about weather, so refresh just that source rather than
+    // nuking the entire cache (which would needlessly refetch calendar/lunch/indoor).
+    if (forceRefresh) {
+        weather = await fetchWeatherFresh();
+    }
     // Only retry if weather is completely unavailable (total API failure),
     // not just because current temperature is missing in an otherwise valid response.
     for (let i = 0; i < WEATHER_ENSURE_RETRIES && weather === null; i++) {

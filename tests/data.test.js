@@ -237,6 +237,50 @@ describe('data.js', () => {
         });
     });
 
+    describe('fetchWeatherFresh does not invalidate other caches', () => {
+        test('calendar/lunch/indoor caches remain valid after a weather-only refresh', async () => {
+            process.env.OPEN_METEO_LAT = '59.3';
+            process.env.OPEN_METEO_LON = '18.0';
+            process.env.WEATHER_REFRESH_MINUTES = '60';
+            process.env.N8N_WEBHOOK_CALENDAR = 'http://test.local/calendar';
+            process.env.N8N_WEBHOOK_LUNCH = 'http://test.local/lunch';
+            process.env.N8N_WEBHOOK_INDOOR = 'http://test.local/indoor';
+            const mockWeatherData = {
+                current: { temperature_2m: 20, weather_code: 1 },
+                daily: {
+                    temperature_2m_max: [20, 22, 23, 24],
+                    temperature_2m_min: [10, 11, 12, 13],
+                    precipitation_probability_max: [0, 10, 20, 30],
+                    weather_code: [0, 1, 2, 3]
+                }
+            };
+            const mockCalendarData = { events: [{ summary: 'Meeting' }] };
+            const mockLunchData = [{ datum: 'Monday', meny: ['Soup'] }];
+            const mockIndoorData = { current: 21, rooms: [{ name: 'Kitchen', temp: 22 }] };
+            const mockFn = jest.fn((url) => {
+                if (url.includes('open-meteo')) return Promise.resolve({ data: [mockWeatherData] });
+                if (url.includes('calendar')) return Promise.resolve({ data: mockCalendarData });
+                if (url.includes('lunch')) return Promise.resolve({ data: mockLunchData });
+                if (url.includes('indoor')) return Promise.resolve({ data: mockIndoorData });
+                return Promise.resolve({ data: null });
+            });
+            setupMocks(mockFn);
+            const { fetchAllData, fetchWeatherFresh } = require('../src/services/data');
+
+            await fetchAllData();
+            const callsAfterAll = mockFn.mock.calls.length;
+
+            // Weather-only refresh refetches weather exactly once...
+            await fetchWeatherFresh();
+            expect(mockFn.mock.calls.length).toBe(callsAfterAll + 1);
+
+            // ...and a subsequent fetchAllData must NOT refetch calendar/lunch/indoor,
+            // because their caches were left intact.
+            await fetchAllData();
+            expect(mockFn.mock.calls.length).toBe(callsAfterAll + 1);
+        });
+    });
+
     describe('race condition prevention', () => {
         test('concurrent fetchAllData calls share single pending fetch', async () => {
             process.env.OPEN_METEO_LAT = '59.3';

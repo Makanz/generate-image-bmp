@@ -285,17 +285,30 @@ async function fetchAllData(): Promise<AllData> {
     };
 }
 
+async function fetchSourceFresh<T>(key: keyof Cache, fetchFn: () => Promise<T | null>): Promise<T | null> {
+    cache[key].timestamp = 0;
+    return fetchSource(key, fetchFn);
+}
+
 async function fetchAllDataFresh(): Promise<AllData> {
-    cache.weather.timestamp = 0;
-    cache.calendar.timestamp = 0;
-    cache.lunch.timestamp = 0;
-    cache.indoor.timestamp = 0;
-    return fetchAllData();
+    const [weather, calendar, lunch, indoor] = await Promise.all([
+        fetchSourceFresh('weather', fetchWeather),
+        fetchSourceFresh('calendar', fetchCalendar),
+        fetchSourceFresh('lunch', fetchLunch),
+        fetchSourceFresh('indoor', fetchIndoor)
+    ]);
+
+    return {
+        weather,
+        calendar,
+        lunch,
+        indoor,
+        timestamp: new Date().toISOString()
+    };
 }
 
 async function fetchWeatherFresh(): Promise<WeatherData | null> {
-    cache.weather.timestamp = 0;
-    return fetchSource('weather', fetchWeather);
+    return fetchSourceFresh('weather', fetchWeather);
 }
 
 async function persistCache(): Promise<void> {

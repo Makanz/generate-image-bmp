@@ -16,6 +16,14 @@ const THIS_WEEK: LunchItem[] = [
     { datum: 'Fredag 9 Oktober',  meny: ['Schnitzel'] },
 ];
 
+// Lovdag: skolan är stängd på måndagen, menyn har bara tis-fre.
+const HOLIDAY_MONDAY: LunchItem[] = [
+    { datum: 'Tisdag 6 Oktober',  meny: ['Chilipanna'] },
+    { datum: 'Onsdag 7 Oktober',  meny: ['Pankopanerad fisk'] },
+    { datum: 'Torsdag 8 Oktober', meny: ['Spaghetti'] },
+    { datum: 'Fredag 9 Oktober',  meny: ['Schnitzel'] },
+];
+
 describe('lunchCoversDate (cache-färskhet)', () => {
     it('rejects a menu from the previous week on a school day', () => {
         // Regression: cachen ansågs färsk i 24 h, så måndagens hämtning i
@@ -41,6 +49,13 @@ describe('lunchCoversDate (cache-färskhet)', () => {
     it('rejects the day after the menu week ends', () => {
         // Måndag 12 oktober täcks inte av vecka 5-9 oktober
         expect(lunchCoversDate(THIS_WEEK, new Date(2026, 9, 12))).toBe(false);
+    });
+
+    it('reports false on a holiday Monday that the menu skips', () => {
+        // Cachen får då inte gälla, men datan är fortfarande den bästa vi har —
+        // data.ts backar av med ERROR_RETRY_MS i stället för att hämta om på
+        // varje anrop (se isInRetryBackoff).
+        expect(lunchCoversDate(HOLIDAY_MONDAY, new Date(2026, 9, 5))).toBe(false);
     });
 });
 

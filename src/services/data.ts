@@ -76,6 +76,13 @@ interface Cache {
     indoor: CacheEntry<IndoorData>;
 }
 
+/**
+ * Tillfälliga hämtningsförsök som misslyckats med att ge data som klarar
+ * källans giltighetskrav (t.ex. en meny som inte täcker dagens datum).
+ * Nyckeln är tidsstämpeln för försöket, så vi inte hamrar källan.
+ */
+const retryAfter: Partial<Record<keyof Cache, number>> = {};
+
 let cache: Cache = {
     weather: { data: null, timestamp: 0 },
     calendar: { data: null, timestamp: 0 },
@@ -87,6 +94,29 @@ let pendingFetches: Partial<Record<keyof Cache, Promise<unknown>>> = {};
 
 const CACHE_FILE = path.join(getAppRoot(), 'output', 'cache.json');
 
+/**
+ * True när källan nyligen försöktes hämtas utan att ge data som uppfyller
+ * giltighetskravet — då tjänar vi den cache vi har och väntar på nästa försök.
+ */
+function isInRetryBackoff(source: keyof Cache): boolean {
+    const lastAttempt = retryAfter[source];
+    if (lastAttempt === undefined) {
+        return false;
+    }
+    return Date.now() - lastAttempt < ERROR_RETRY_MS;
+}
+
+/**
+ * Källspecifika giltighetskrav utöver TTL. Returnerar true när hämtad data är
+ * användbar för det aktuella datumet.
+ */
+function satisfiesFreshness(source: keyof Cache, data: unknown): boolean {
+    if (source === 'lunch') {
+        return lunchCoversToday(data as LunchItem[] | null);
+    }
+    return true;
+}
+
 function isCacheValid(source: keyof Cache): boolean {
     const cacheEntry = cache[source];
     if (!cacheEntry || cacheEntry.timestamp <= 0) {
@@ -97,7 +127,7 @@ function isCacheValid(source: keyof Cache): boolean {
     // skolan publicerar nästa vecka först på måndag morgon. En meny som inte
     // täcker dagens datum (t.ex. hämtad i söndags och bara innehåller förra
     // veckan) måste hämtas om, annars visas förra veckans rätt hela måndagen.
-    if (source === 'lunch' && !lunchCoversToday(cacheEntry.data as LunchItem[] | null)) {
+    if (!satisfiesFreshness(source, cacheEntry.data)) {
         return false;
     }
 
@@ -241,6 +271,14 @@ async function fetchSource<T>(key: keyof Cache, fetchFn: () => Promise<T | null>
         return cache[key].data as T | null;
     }
 
+    // En ogiltig cache betyder inte alltid att ny data finns att hämta: på en
+    // lovdag saknar menyn dagens datum trots att hämtningen lyckas. Då är
+    // cachen "ofärsk" men fortfarande den bästa vi har — vänta ERROR_RETRY_MS
+    // i stället för att hamra webhooken på varje anrop.
+    if (isInRetryBackoff(key)) {
+        return cache[key].data as T | null;
+    }
+
     if (pendingFetches[key]) {
         return pendingFetches[key] as Promise<T | null>;
     }
@@ -250,6 +288,14 @@ async function fetchSource<T>(key: keyof Cache, fetchFn: () => Promise<T | null>
         const now = Date.now();
 
         if (data !== null) {
+            // Källan svarade, men uppfyller svaret giltighetskravet? Menyn är
+            // veckobaserad, så ett lyckat svar kan ändå sakna dagens datum.
+            if (!satisfiesFreshness(key, data)) {
+                retryAfter[key] = now;
+            } else {
+                delete retryAfter[key];
+            }
+
             cache[key] = {
                 data: data as never,
                 timestamp: now
@@ -259,6 +305,7 @@ async function fetchSource<T>(key: keyof Cache, fetchFn: () => Promise<T | null>
             // Keep existing cached data so stale-but-valid data is still served.
             // Only advance the timestamp so we retry after ERROR_RETRY_MS instead
             // of hammering the API on every request.
+            retryAfter[key] = now;
             cache[key] = {
                 data: cache[key].data as never,
                 timestamp: Math.max(1, now - CACHE_TTL_MS[key] + ERROR_RETRY_MS)
@@ -353,7 +400,7 @@ async function restoreCache(): Promise<void> {
             // täcker dagens datum. Annars hämtas aktuell vecka direkt.
             if (lunchEntry.data !== null
                 && age < CACHE_TTL_MS.lunch
-                && lunchCoversToday(lunchEntry.data as LunchItem[] | null)) {
+                && satisfiesFreshness('lunch', lunchEntry.data)) {
                 cache.lunch = lunchEntry;
             }
         }

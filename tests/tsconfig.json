@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "noEmit": true
+  },
+  "include": [
+    "../src/**/*.ts",
+    "../capture.ts",
+    "../server.ts",
+    "../dashboard-web/**/*.ts",
+    "./**/*.ts"
+  ]
+}

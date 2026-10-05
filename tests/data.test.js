@@ -255,7 +255,18 @@ describe('data.js', () => {
                 }
             };
             const mockCalendarData = { events: [{ summary: 'Meeting' }] };
-            const mockLunchData = [{ datum: 'Monday', meny: ['Soup'] }];
+            // Menyn måste täcka dagens datum, annars betraktas cachen som
+            // inaktuell (se isCacheValid i src/services/data.ts).
+            const now = new Date();
+            const monthNames = [
+                'Januari', 'Februari', 'Mars', 'April', 'Maj', 'Juni',
+                'Juli', 'Augusti', 'September', 'Oktober', 'November', 'December'
+            ];
+            const dayNames = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
+            const mockLunchData = [{
+                datum: `${dayNames[now.getDay()]} ${now.getDate()} ${monthNames[now.getMonth()]}`,
+                meny: ['Soup']
+            }];
             const mockIndoorData = { current: 21, rooms: [{ name: 'Kitchen', temp: 22 }] };
             const mockFn = jest.fn((url) => {
                 if (url.includes('open-meteo')) return Promise.resolve({ data: [mockWeatherData] });

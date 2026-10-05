@@ -51,6 +51,7 @@ generate-image-bmp/
 ├── src/
 │   ├── image/
 │   │   └── bmp-writer.ts         # 1-bit BMP writer and in-memory BMP buffer helper
+│   ├── lunch-menu.ts             # Matsedelns datumlogik (delas av frontend + backend)
 │   └── services/
 │       ├── data.ts               # Data fetching and caching (weather, calendar, lunch, indoor)
 │       ├── homey.ts              # Optional Homey direct API integration
@@ -130,6 +131,10 @@ pnpm test            # Run Jest test suite
 **Page-ready signal**: `capture.ts` waits for `document.body.dataset.loaded === 'true'` before taking a screenshot. `dashboard-web/script.ts` sets this flag (`markDataLoaded()`) after data is rendered. The frontend falls back to mock data if `/api/data` fails, so the flag is always set.
 
 **Data caching** (`src/services/data.ts`): Each source (weather, calendar, lunch, indoor) has its own TTL. On fetch failure, the cache timestamp is set to `now - CACHE_TTL + ERROR_RETRY_MS` so retries happen after `ERROR_RETRY_MS` rather than waiting for the full TTL. The cache is persisted to `output/cache.json` and restored on server startup.
+
+**Lunch menu freshness** (`src/lunch-menu.ts`): The school menu is week-based and lists one entry per school day (e.g. `"Måndag 5 Oktober"`). Matching is on **exact day + month** — never on the weekday name, which recurs every week and would serve the previous week's food. TTL alone is not a freshness measure here: the school publishes the new week on Monday morning, so a Sunday-night fetch still holds last week. A cache entry that does not cover the current date (weekends count as covered) is treated as stale and refetched, both in memory and when restoring `output/cache.json`.
+
+**Retry backoff**: A source can be successfully fetched yet still not satisfy its freshness rule (e.g. a holiday Monday the menu skips). Recording the attempt in `retryAfter` means the next calls serve the existing cache instead of re-hitting the source on every request until `ERROR_RETRY_MS` has passed.
 
 **Weather source**: Fetched directly from Open-Meteo (`api.open-meteo.com`) using `OPEN_METEO_LAT` and `OPEN_METEO_LON`. A webhook fallback is no longer used.
 

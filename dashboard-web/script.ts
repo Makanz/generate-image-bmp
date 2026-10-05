@@ -1,14 +1,7 @@
 // ── Locale constants ─────────────────────────────────────────────────────────
+// Datum- och menyhjälparna bor i src/lunch-menu.ts (delas med backend).
 
-const MONTHS_LOWER = [
-    'januari', 'februari', 'mars', 'april', 'maj', 'juni',
-    'juli', 'augusti', 'september', 'oktober', 'november', 'december',
-];
-const MONTHS_UPPER = MONTHS_LOWER.map(m => m.toUpperCase());
-const MONTHS_CAP   = MONTHS_LOWER.map(m => m.charAt(0).toUpperCase() + m.slice(1));
-
-const DAYS_LOWER = ['söndag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag'];
-const DAYS_CAP   = DAYS_LOWER.map(d => d.charAt(0).toUpperCase() + d.slice(1));
+import { getDateStrings, findTodaysMenu, MONTHS_UPPER, DAYS_CAP } from '../src/lunch-menu';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -127,37 +120,6 @@ function formatTime(datetimeStr: string): string {
     const h = String(date.getHours()).padStart(2, '0');
     const m = String(date.getMinutes()).padStart(2, '0');
     return `${h}:${m}`;
-}
-
-/** Returns locale strings for a given date, used by lunch matching. */
-function getDateStrings(date: Date): DateStrings {
-    const dayOfWeek = date.getDay();
-    const month     = date.getMonth();
-    return {
-        day:        date.getDate(),
-        monthLower: MONTHS_LOWER[month],
-        monthUpper: MONTHS_UPPER[month],
-        monthCap:   MONTHS_CAP[month],
-        dayOfWeek,
-        dayLower:   DAYS_LOWER[dayOfWeek],
-        dayCap:     DAYS_CAP[dayOfWeek],
-    };
-}
-
-/** Finds the lunch entry for today, falling back to the first item. */
-function findTodaysMenu(data: LunchItem[], date: Date): LunchItem | undefined {
-    const { day, monthLower, monthCap, monthUpper, dayLower, dayCap } = getDateStrings(date);
-
-    return data.find(m => {
-        const datum = (m.datum || '').toLowerCase();
-        const containsDay      = new RegExp(`\\b${day}\\b`).test(datum);
-        const containsMonth    = datum.includes(monthLower)
-                              || datum.includes(monthCap.toLowerCase())
-                              || datum.includes(monthUpper.toLowerCase());
-        const containsWeekday  = datum.includes(dayLower)
-                              || datum.includes(dayCap.toLowerCase());
-        return (containsDay && containsMonth) || containsWeekday;
-    }) ?? data[0];
 }
 
 /**

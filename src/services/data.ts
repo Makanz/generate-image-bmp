@@ -2,6 +2,7 @@ import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
 import { fetchIndoorTemperatures } from './homey';
+import { lunchCoversToday, type LunchItem } from '../lunch-menu';
 import { HTTP_TIMEOUT_MS, WEATHER_FORECAST_START_INDEX, WEATHER_FORECAST_COUNT } from '../utils/constants';
 import { handleApiError } from '../utils/errors';
 import { getAppRoot } from '../utils/path';
@@ -54,10 +55,6 @@ interface CalendarData {
     }>;
 }
 
-interface LunchItem {
-    datum?: string;
-    meny?: string[];
-}
 
 interface AllData {
     weather: WeatherData | null;
@@ -93,6 +90,14 @@ const CACHE_FILE = path.join(getAppRoot(), 'output', 'cache.json');
 function isCacheValid(source: keyof Cache): boolean {
     const cacheEntry = cache[source];
     if (!cacheEntry || cacheEntry.timestamp <= 0) {
+        return false;
+    }
+
+    // Lunchmenyn är veckobaserad: TTL räcker inte som färskhetsmått, eftersom
+    // skolan publicerar nästa vecka först på måndag morgon. En meny som inte
+    // täcker dagens datum (t.ex. hämtad i söndags och bara innehåller förra
+    // veckan) måste hämtas om, annars visas förra veckans rätt hela måndagen.
+    if (source === 'lunch' && !lunchCoversToday(cacheEntry.data as LunchItem[] | null)) {
         return false;
     }
 
@@ -344,7 +349,11 @@ async function restoreCache(): Promise<void> {
         const lunchEntry = saved.lunch;
         if (isValidCacheEntry(lunchEntry)) {
             const age = Date.now() - lunchEntry.timestamp;
-            if (lunchEntry.data !== null && age < CACHE_TTL_MS.lunch) {
+            // Menyn cachas på disk över omstart — men bara om den fortfarande
+            // täcker dagens datum. Annars hämtas aktuell vecka direkt.
+            if (lunchEntry.data !== null
+                && age < CACHE_TTL_MS.lunch
+                && lunchCoversToday(lunchEntry.data as LunchItem[] | null)) {
                 cache.lunch = lunchEntry;
             }
         }

@@ -100,6 +100,7 @@ The generated BMP will be written to `output/dashboard.bmp`.
 | `BROWSERLESS_URL` | No | — | Browserless REST API URL (falls back to Playwright) |
 | `BROWSERLESS_TOKEN` | No | — | Basic auth token for Browserless |
 | `CAPTURE_URL` | No | `http://localhost:{PORT}` | URL to capture for the BMP screenshot |
+| `OUTPUT_VOLUME` | No | `./output` | Host directory mounted as `/app/output` where the generated BMPs are written |
 | `QUIET_HOURS_START` | No | — | Quiet hours start (hour, e.g. `23`) |
 | `QUIET_HOURS_END` | No | — | Quiet hours end (hour, e.g. `6`) |
 | `WEATHER_REFRESH_MINUTES` | No | `15` | Weather cache TTL |
@@ -127,6 +128,9 @@ The generated BMP will be written to `output/dashboard.bmp`.
 ## Docker Deployment
 
 ```bash
+# Copy the example config and fill in your own values
+cp .env.example .env
+
 # Build and run
 docker compose up -d
 
@@ -144,12 +148,16 @@ docker run -d \
 The included `docker-compose.yml` provides a production-ready setup with:
 - Automatic restart (`restart: unless-stopped`)
 - Timezone set to `Europe/Stockholm`
-- Persistent output volume for generated BMPs
-- Browserless integration for screenshot capture
+- Persistent output volume for generated BMPs (host path via `OUTPUT_VOLUME`)
+- Browserless integration for screenshot capture (via `BROWSERLESS_URL`)
 
 > **Note:** The Dockerfile installs Chromium for Playwright-based screenshot
 > capture. If you use a remote Browserless instance instead, you can skip
 > Playwright by setting `BROWSERLESS_URL` and `BROWSERLESS_TOKEN`.
+
+> **Note:** All deployment-specific values (host paths, internal addresses,
+> webhook URLs, coordinates) live in `.env` and are read from there. The
+> compose file itself contains no host-specific configuration.
 
 ## Output Manifest
 

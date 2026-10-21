@@ -18,8 +18,8 @@ services:
       - DASHBOARD_DESIGN=${DASHBOARD_DESIGN:-classic}
       - QUIET_HOURS_START=${QUIET_HOURS_START:-}
       - QUIET_HOURS_END=${QUIET_HOURS_END:-}
-      - BROWSERLESS_URL=http://<internal-host>:3000
+      - BROWSERLESS_URL=${BROWSERLESS_URL:-}
       - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-}
-      - CAPTURE_URL=http://<internal-host>:3001
+      - CAPTURE_URL=${CAPTURE_URL:-}
     volumes:
-      - ./output:/app/output
+      - ${OUTPUT_VOLUME:-./output}:/app/output

@@ -317,6 +317,7 @@ Copy `.env.example` to `.env`. Key variables:
 | `BROWSERLESS_URL` | Browserless REST API URL (optional) | - |
 | `BROWSERLESS_TOKEN` | Browserless auth token | - |
 | `CAPTURE_URL` | Direct URL for screenshot capture | `http://localhost:5173/` |
+| `OUTPUT_VOLUME` | Host directory mounted as `/app/output` for generated BMPs | `./output` |
 
 ## Docker
 
@@ -324,6 +325,10 @@ Copy `.env.example` to `.env`. Key variables:
 cp .env.example .env   # fill in coordinates and webhook URLs
 docker-compose up -d   # builds and starts the container
 ```
+
+All deployment-specific values (host paths, internal addresses, webhook URLs,
+coordinates) are read from `.env`. The compose file itself contains no
+host-specific configuration.
 
 The ESP32 fetches the image via `http://<server-ip>:3001/dashboard.bmp`.
 

@@ -53,7 +53,13 @@ interface AllDataResponse {
     indoor: IndoorData | null;
     lunch: LunchItem[] | null;
     calendar: CalendarData | null;
+    nameDay?: NameDayInfo | null;
     timestamp: string;
+}
+
+interface NameDayInfo {
+    today: string[];
+    tomorrow: string[];
 }
 
 interface DateStrings {
@@ -209,6 +215,14 @@ function updateDate(): void {
     if (dayEl)     dayEl.textContent     = String(now.getDate());
     if (monthEl)   monthEl.textContent   = MONTHS_UPPER[now.getMonth()];
     if (weekdayEl) weekdayEl.textContent = DAYS_CAP[now.getDay()];
+}
+
+function updateNameDay(nameDay: NameDayInfo | null | undefined): void {
+    const el = document.getElementById('date-nameday');
+    if (!el) return;
+
+    const names = nameDay?.today ?? [];
+    el.textContent = names.length > 0 ? `Namnsdag: ${names.join(', ')}` : '';
 }
 
 function updateOutdoorWeather(weather: WeatherData): void {
@@ -374,6 +388,8 @@ function generateMockData(): void {
             { datetime: d(tomorrow,17,  0), summary: 'Kvällsmat'    },
         ],
     });
+
+    updateNameDay({ today: ['Klemens'], tomorrow: ['Gudrun', 'Rune'] });
 }
 
 // ── Initialisation ────────────────────────────────────────────────────────────
@@ -403,6 +419,7 @@ async function fetchData(): Promise<void> {
         updateTemperature(data.weather, data.indoor);
         updateSchoolLunch(data.lunch);
         updateCalendar(data.calendar);
+        updateNameDay(data.nameDay);
         markDataLoaded();
     } catch {
         console.warn('[ui] Failed to fetch data, using mock data');

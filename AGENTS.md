@@ -138,6 +138,8 @@ pnpm test            # Run Jest test suite
 
 **Weather source**: Fetched directly from Open-Meteo (`api.open-meteo.com`) using `OPEN_METEO_LAT` and `OPEN_METEO_LON`. A webhook fallback is no longer used.
 
+**Namnsdagar** (`src/name-days.ts`): En statisk tabell med den svenska namnlängden (`"MM-DD"` → namn), ett uppslag per datum. Inget nätanrop och ingen cache — `getNameDayInfo()` räknar ut dagens och morgondagens namn vid varje `/api/data`-anrop, så skiften över dygn, månad och år blir automatiskt rätt. Dagar utan namnsdag (1 januari, skottdagen, 25 december) saknas i tabellen och ger en tom lista; frontend visar då ingen rad. Datan kommer från svenska Wikipedias namnsdaglista (CC BY-SA 4.0, via heynils/namnsdagar) och ändras sällan — uppdatera tabellen manuellt om almanackan revideras.
+
 **Indoor temperature**: Fetched from the Homey direct API (`HOMEY_IP` + `HOMEY_TOKEN`, or `HOMEY_USERNAME`/`HOMEY_PASSWORD`) or falls back to the `N8N_WEBHOOK_INDOOR` webhook.
 
 **Weather retry on startup**: `server.ts` retries weather up to 3 times (3s apart) before generating the initial image, to avoid blank weather data on a cold start.

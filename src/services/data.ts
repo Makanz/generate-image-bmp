@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fetchIndoorTemperatures } from './homey';
 import { lunchCoversToday, type LunchItem } from '../lunch-menu';
+import { getNameDayInfo, type NameDayInfo } from '../name-days';
 import { HTTP_TIMEOUT_MS, WEATHER_FORECAST_START_INDEX, WEATHER_FORECAST_COUNT } from '../utils/constants';
 import { handleApiError } from '../utils/errors';
 import { getAppRoot } from '../utils/path';
@@ -61,6 +62,7 @@ interface AllData {
     calendar: CalendarData | null;
     lunch: LunchItem[] | null;
     indoor: IndoorData | null;
+    nameDay: NameDayInfo;
     timestamp: string;
 }
 
@@ -333,6 +335,7 @@ async function fetchAllData(): Promise<AllData> {
         calendar,
         lunch,
         indoor,
+        nameDay: getNameDayInfo(),
         timestamp: new Date().toISOString()
     };
 }
@@ -355,6 +358,7 @@ async function fetchAllDataFresh(): Promise<AllData> {
         calendar,
         lunch,
         indoor,
+        nameDay: getNameDayInfo(),
         timestamp: new Date().toISOString()
     };
 }

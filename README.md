@@ -10,6 +10,7 @@ A TypeScript application that generates a **1-bit monochrome BMP dashboard image
 - 🏠 **Indoor temperature** — Per-room readings via Homey API or n8n webhook
 - 📅 **Calendar** — Today's and tomorrow's events from n8n webhook
 - 🍽 **School lunch** — Weekly lunch menu from n8n webhook
+- 🎉 **Namnsdag** — Dagens och morgondagens svenska namnsdag ur en statisk tabell (`src/name-days.ts`)
 - 🖨 **1-bit BMP output** — Optimized for ESP32 e-paper displays (800×480)
 - 🔄 **Automatic refresh** — Configurable cron-based image regeneration
 - 🌙 **Quiet hours** — Skip generation during configurable hours (e.g., nighttime)

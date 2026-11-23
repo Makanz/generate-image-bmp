@@ -99,6 +99,13 @@ const swaggerOptions = {
                         },
                     },
                 },
+                NameDayData: {
+                    type: 'object',
+                    properties: {
+                        today: { type: 'array', items: { type: 'string' } },
+                        tomorrow: { type: 'array', items: { type: 'string' } },
+                    },
+                },
                 DashboardData: {
                     type: 'object',
                     properties: {
@@ -106,6 +113,7 @@ const swaggerOptions = {
                         calendar: { $ref: '#/components/schemas/CalendarData' },
                         lunch: { type: 'array', items: { $ref: '#/components/schemas/LunchItem' } },
                         indoor: { $ref: '#/components/schemas/IndoorData' },
+                        nameDay: { $ref: '#/components/schemas/NameDayData' },
                         timestamp: { type: 'string' },
                     },
                 },
@@ -318,7 +326,7 @@ app.get('/api/data', withErrorHandling('Error fetching data', async (_req, res) 
      * /api/data:
      *   get:
      *     summary: Get aggregated dashboard data
-     *     description: Returns weather, calendar, lunch, and indoor temperature data from cached sources.
+     *     description: Returns weather, calendar, lunch, indoor temperature and Swedish name day data from cached sources.
      *     tags:
      *       - Data
      *     responses:

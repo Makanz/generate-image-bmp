@@ -110,6 +110,12 @@ html, body {
     letter-spacing: 4px;
 }
 
+.mh-nameday {
+    font-size: 16px;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.2;
+    margin-top: var(--spacing-sm);
+}
 .mh-ute-label {
     font-size: 16px;
     font-weight: var(--font-weight-extrabold);
